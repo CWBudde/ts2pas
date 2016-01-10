@@ -1,0 +1,34 @@
+{
+  "name": "ts2pas",
+  "version": "0.1.0",
+  "description": "A tool to convert TypeScript definition files to DWScript based Object Pascal headers",
+  "main": "ts2pas.js",
+  "dependencies": {
+    "typescript": "^1.7.5"
+  },
+  "devDependencies": {
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/cwbudde/ts2pas.git"
+  },
+  "keywords": [
+    "TypeScript",
+    "Object Pascal",
+    "Smart Mobile Studio",
+    "DWScript"
+  ],
+  "author": "Christian-W. Budde <CWBudde@pcjv.de> (http://pcjv.de)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cwbudde/ts2pas/issues"
+  },
+  "homepage": "https://github.com/cwbudde/ts2pas#readme",
+  "preferGlobal": true,
+  "bin": {
+    "ts2pas" : "ts2pas.js"
+  }
+}
