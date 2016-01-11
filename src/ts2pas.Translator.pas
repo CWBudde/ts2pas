@@ -309,6 +309,8 @@ begin
         FModules.Add(ReadModule);
       TSyntaxKind.ImportKeyword:
         ReadImport;
+      TSyntaxKind.EndOfFileToken:
+        Exit;
       else
         HandleScanError;
     end;
@@ -437,8 +439,8 @@ begin
   Result := TFunctionParameter.Create;
   Result.Name := FScanner.GetTokenText;
 
-  // either accept ? or :
-  ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken], True);
+  // either accept ? or : or )
+  ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken, TSyntaxKind.CloseParenToken], True);
 
   // check if type is nullable
   Result.Nullable := FScanner.getToken = TSyntaxKind.QuestionToken;
@@ -634,208 +636,6 @@ begin
         HandleScanError;
     end;
   end;
-
-
-
-(*
-    if (FToken.tokenId = ttOpenBrace) then  //{
-    begin
-      NextToken; //next
-      while ( (FToken.tokenId = ttExport) or    //export
-              (FToken.tokenId = ttImport) or  //import
-              (FToken.tokenId = ttVar) or  //var
-              (FToken.tokenId = ttClass) or  //class
-              (FToken.tokenId = ttEnum) or  //enum
-              (FToken.tokenId = ttInterface) ) do  //interface (inline)
-      begin
-        if (FToken.tokenId = ttImport) then
-        begin
-          NextToken; //next
-          if TokenIsIdentifier then                         //name
-          begin
-            sname := GetTokenName;
-
-            NextToken; //next
-            if (FToken.tokenId = ttEquals) then   //=
-            begin
-              NextToken; //next
-              if (FToken.tokenId <> ttModule) then  //module
-                procesUnknown;
-              NextToken; //next
-              if (FToken.tokenId <> ttOpenParen) then   //(
-                procesUnknown;
-              NextToken; //next
-              if (FToken.tokenId <> ttStringLiteral) then  //"name"
-                procesUnknown;
-
-              FCurrentUnit.InterfaceBlock.ImportNames.push(sname);
-              sname := FToken.value;
-              sname := SubString(sname, 2, sname.length);
-              FCurrentUnit.InterfaceBlock.ImportUses.push(sname);
-
-              NextToken; //next
-              if (FToken.tokenId <> ttCloseParen) then  //)
-                procesUnknown;
-              NextToken; //next
-              if (FToken.tokenId <> ttSemicolon) then  //;
-                procesUnknown;
-              NextToken; //next
-            end
-            else procesUnknown;
-          end
-        end
-        else if (FToken.tokenId = ttExport) then
-        begin
-          NextToken; //next
-          if (FToken.tokenId = ttFunction) then
-          begin
-            NextToken; //next
-
-            if TokenIsIdentifier then   //name or type?
-            begin
-              sname := GetTokenName;
-              NextToken; //next
-              if (FToken.tokenId = ttOpenParen) then   //(
-              begin
-                procesFunction(exportobj, sname, True, false); //, {overloaded?}functions.IndexOf(sname) >= 0);
-              end
-              else procesUnknown;
-            end
-            //unnamed function?
-            else if FToken.tokenId = ttOpenParen then //(
-            begin
-              sname := FCurrentUnit.Name;
-              procesFunction(exportobj, sname, True, false); //{overloaded?}functions.IndexOf(sname) >= 0);
-            end
-            else procesUnknown;
-          end
-          else if (FToken.tokenId = ttInterface) then  //interface
-          begin
-            procesInterface();
-          end
-          else if (FToken.tokenId = ttClass) then       //class
-          begin
-            procesInterface();
-          end
-          else if (FToken.tokenId = ttEnum) then       //enum
-          begin
-            procesEnum();
-          end
-          else if (FToken.tokenId = ttVar) then       //var
-          begin
-            NextToken; //next
-            if TokenIsIdentifier then
-            begin
-              sname := GetTokenName;
-              NextToken; //next
-            end
-            else procesUnknown;
-
-            if (FToken.tokenId = ttColon) then    //:
-            begin
-              Frecursion.push(sname);
-
-              NextToken; //next
-              stype := procesType(false, true{result, so external});
-              if (stype <> '') then
-                exportobj.Properties.push('property ' + sname + ': ' + stype + ';')
-              else
-                procesUnknown;
-
-              if (FToken.tokenId = ttSemicolon) then  //;
-                NextToken; //next
-              Frecursion.pop();
-            end
-            //property without type or nameless?
-            else if (FToken.tokenId = ttSemicolon) then   //;
-            begin
-              exportobj.Properties.push('property ' + sname + ': variant;');
-              NextToken; //next
-            end
-            else
-              procesUnknown;
-          end
-          else if (FToken.tokenId = ttModule) then  //module
-          begin
-            //sub module
-            procesModule(True);
-          end
-          else
-            procesUnknown;
-        end //if export
-        else if (FToken.tokenId = ttInterface) then
-        begin
-          procesInterface();
-        end
-        else if (FToken.tokenId = ttClass) then       //class
-        begin
-          procesInterface();
-        end
-        else if (FToken.tokenId = ttEnum) then       //enum
-        begin
-          procesEnum();
-        end
-        else if (FToken.tokenId = ttVar) then
-        begin
-          NextToken; //next
-          if TokenIsIdentifier then
-          begin
-            sname := GetTokenName;
-            NextToken; //next
-          end
-          else procesUnknown;
-
-          if (FToken.tokenId = ttColon) then    //:
-          begin
-            Frecursion.push(sname);
-
-            NextToken; //next
-            stype := procesType();
-            if (stype <> '') then
-              exportobj.Properties.push(sname + ': ' + stype + ';')  //field
-            else
-              procesUnknown;
-
-            if (FToken.tokenId = ttSemicolon) then  //;
-              NextToken; //next
-            Frecursion.pop();
-          end
-          else
-            procesUnknown;
-        end
-        else procesUnknown;
-      end;  //end while
-
-      if not aSubModule and (exportobj <> nil) then
-      begin
-        if CreateModuleLoader then
-        begin
-          var sresult   := 'J' + FCurrentUnit.Name + '_Exports';
-          var sfunction := 'function ' + FCurrentUnit.Name;
-          if LowerCase(FCurrentUnit.Name) = 'assert' then  //reserved name?
-            sfunction += '_';
-          sfunction += ': ' + sresult + ';';
-
-          var f := TFunction.Create;
-          f.Raw := sfunction;
-          FCurrentBlock.Functions.Push(f);
-          sfunction += nl + 'begin' + nl +
-                       '  result := ' + sresult + '( require("' + FCurrentUnit.Name + '") );' + nl +
-                       'end;' + nl;
-          FCurrentUnit.ImplementationBlock.Functions.Push(sfunction);
-        end;
-        //add as last class
-        FCurrentBlock.Classes.push(exportobj);
-      end;
-
-      if (FToken.tokenId = ttCloseBrace) then  //}
-        NextToken //next
-      else procesUnknown;
-    end
-    else procesUnknown;
-  end
-  else procesUnknown;
-*)
 end;
 
 function TTranslator.ReadScopedName: String;
@@ -873,50 +673,6 @@ begin
 
   // read colon
   ReadToken(TSyntaxKind.ColonToken, True);
-
-(*
-  if (FToken.tokenId = ttColon) then        //:
-  begin
-    NextToken; //next
-
-    if (FToken.tokenId = ttOpenBrace) then  //{
-    begin
-      spascal := spascal + svarname;
-      stype   := procesObject(svarname) + ';' + nl;
-      //unique function? e.q. function require(id:string) and function require: Jrequire -> function require_Obj: Jrequire
-      spascal += '_Obj';      //always add _Obj, otherwise "function console" is same as variable "console"
-      spascal := spascal + ': ' + stype;
-      sfunctionimpl := spascal;
-    end
-    else
-    begin
-      spascal  := spascal + svarname + ': '; // + '_var: ';
-      Frecursion.push(svarname);
-
-      stype := procesType;
-      if (stype <> '') then
-        spascal := spascal + stype + ';' + nl
-      else
-        procesUnknown();
-      sfunctionimpl := spascal;
-
-      if (FToken.tokenId = ttSemicolon) then  //;
-        NextToken; //next
-      Frecursion.pop();
-    end;
-
-    sfunctionimpl += 'begin' + nl +
-                     '  asm @Result = ' + svarname + '; end;' + nl +
-                     'end;' + nl;
-  end
-  else
-    procesUnknown;
-
-  FCurrentUnit.ImplementationBlock.Functions.Add(sfunctionimpl);
-  var f := TFunction.Create;
-  f.Raw := spascal;
-  FCurrentBlock.Functions.push(f);
-*)
 end;
 
 procedure TTranslator.HandleScanError;

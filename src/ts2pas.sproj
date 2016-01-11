@@ -2,7 +2,7 @@
   <Project version="2" subversion="0">
     <Name>ts2pas</Name>
     <Created>T00:00:00.000</Created>
-    <Modified>2016-01-11T15:42:29.914</Modified>
+    <Modified>2016-01-11T15:47:24.610</Modified>
     <Version>
       <Major>0</Major>
       <Minor>0</Minor>
@@ -92,17 +92,17 @@
       <File type="unit">
         <Name>ts2pas.Translator</Name>
         <Created>2016-01-10T17:45:44.843Z</Created>
-        <Modified>2016-01-11T15:42:29.912</Modified>
+        <Modified>2016-01-11T15:47:24.608</Modified>
         <Filename>ts2pas.Translator.pas</Filename>
       </File>
     </Files>
     <Target>Node.js</Target>
     <Generator>Node.js Project</Generator>
     <Statistics>
-      <BackgroundCompilations>652</BackgroundCompilations>
-      <EditTime>01:49:27.350</EditTime>
-      <CompileTime>00:03:39.586</CompileTime>
-      <TotalTime>23:48:01.576</TotalTime>
+      <BackgroundCompilations>674</BackgroundCompilations>
+      <EditTime>01:50:13.601</EditTime>
+      <CompileTime>00:03:43.247</CompileTime>
+      <TotalTime>23:52:56.270</TotalTime>
       <DesigningTime>00:00:00.000</DesigningTime>
       <RunningTime>00:00:00.000</RunningTime>
     </Statistics>
