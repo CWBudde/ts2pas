@@ -9,7 +9,7 @@ A tool to convert TypeScript definition files to DWScript based Object Pascal he
 
 ## Usage
 
-  ts2pas inputfile [outputfile]
+  ts2pas inputfile.d.ts [outputfile.pas]
 
 ## Release History
 
