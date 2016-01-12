@@ -33,10 +33,11 @@ type
     function ReadVariableExpression: TVariableExpression;
     procedure HandleScanError;
 
-    procedure AssumeIdentifier;
+    procedure AssumeIdentifier(AdditionalToken: array of TSyntaxKind = []);
     procedure AssumeToken(Token: TSyntaxKind); overload;
     procedure AssumeToken(Tokens: array of TSyntaxKind); overload;
-    function ReadIdentifier(Required: Boolean = False): Boolean;
+    function ReadIdentifier(Required: Boolean = False): Boolean; overload;
+    function ReadIdentifier(AdditionalToken: array of TSyntaxKind; Required: Boolean = False): Boolean; overload;
     function ReadToken: TSyntaxKind; overload;
     function ReadToken(Token: TSyntaxKind; Required: Boolean = False): Boolean; overload;
     function ReadToken(Tokens: array of TSyntaxKind; Required: Boolean = False): Boolean; overload;
@@ -64,9 +65,9 @@ begin
 
 end;
 
-procedure TTranslator.AssumeIdentifier;
+procedure TTranslator.AssumeIdentifier(AdditionalToken: array of TSyntaxKind = []);
 begin
-  if not FScanner.isIdentifier then
+  if not (FScanner.isIdentifier or (FScanner.getToken in AdditionalToken)) then
     HandleScanError;
 end;
 
@@ -109,6 +110,14 @@ begin
     HandleScanError;
 end;
 
+function TTranslator.ReadIdentifier(AdditionalToken: array of TSyntaxKind; Required: Boolean = False): Boolean;
+begin
+  ReadToken;
+  Result := FScanner.isIdentifier or (FScanner.getToken in AdditionalToken);
+  if not Result and Required then
+    HandleScanError;
+end;
+
 procedure TTranslator.ReadDefinition;
 begin
   while ReadToken > TSyntaxKind.Unknown do
@@ -139,28 +148,27 @@ begin
 
   Result := TDeclarationExpression.Create(Self as IExpressionOwner);
 
-  while ReadToken > TSyntaxKind.Unknown do
-  begin
-    case FScanner.GetToken of
-      TSyntaxKind.DeclareKeyword:
-        continue;
-      TSyntaxKind.VarKeyword:
-        Result.Variables.Add(ReadVariableExpression);
-      TSyntaxKind.FunctionKeyword:
-        Result.Functions.Add(ReadFunctionExpression);
-      TSyntaxKind.ModuleKeyword:
-        Result.Modules.Add(ReadModuleExpression);
-      TSyntaxKind.InterfaceKeyword:
-        Result.Interfaces.Add(ReadInterfaceExpression);
-      TSyntaxKind.ClassKeyword:
-        Result.Classes.Add(ReadClassExpression);
-      TSyntaxKind.EnumKeyword:
-        ReadEnumerationExpression;
-      TSyntaxKind.EndOfFileToken:
-        Exit;
-      else
-        HandleScanError;
-    end;
+  ReadToken([TSyntaxKind.VarKeyword, TSyntaxKind.ModuleKeyword,
+    TSyntaxKind.NamespaceKeyword, TSyntaxKind.FunctionKeyword], True);
+  case FScanner.GetToken of
+    TSyntaxKind.NamespaceKeyword:
+      begin
+        ReadIdentifier;
+      end;
+    TSyntaxKind.VarKeyword:
+      Result.Variables.Add(ReadVariableExpression);
+    TSyntaxKind.FunctionKeyword:
+      Result.Functions.Add(ReadFunctionExpression);
+    TSyntaxKind.ModuleKeyword:
+      Result.Modules.Add(ReadModuleExpression);
+(*
+    TSyntaxKind.InterfaceKeyword:
+      Result.Interfaces.Add(ReadInterfaceExpression);
+    TSyntaxKind.ClassKeyword:
+      Result.Classes.Add(ReadClassExpression);
+    TSyntaxKind.EnumKeyword:
+      ReadEnumerationExpression;
+*)
   end;
 end;
 
@@ -357,7 +365,7 @@ end;
 function TTranslator.ReadStructureMember: TCustomStructureMember;
 begin
   // sanity check
-  AssumeIdentifier;
+  AssumeIdentifier([TSyntaxKind.NewKeyword]);
 
   // create a interface member
   var MemberName := FScanner.getTokenText;
@@ -416,30 +424,30 @@ begin
   // ensure the current token is an open brace
   AssumeToken(TSyntaxKind.OpenBraceToken);
 
-  while ReadIdentifier do
+  while ReadIdentifier([TSyntaxKind.NewKeyword]) do
   begin
     var Visibility := vPublic;
     case FScanner.getToken of
       TSyntaxKind.PublicKeyword:
         begin
           Visibility := vPublic;
-          ReadIdentifier(True);
+          ReadIdentifier([TSyntaxKind.NewKeyword], True);
         end;
       TSyntaxKind.ProtectedKeyword:
         begin
           Visibility := vProtected;
-          ReadIdentifier(True);
+          ReadIdentifier([TSyntaxKind.NewKeyword], True);
         end;
       TSyntaxKind.PrivateKeyword:
         begin
           Visibility := vPrivate;
-          ReadIdentifier(True);
+          ReadIdentifier([TSyntaxKind.NewKeyword], True);
         end;
     end;
 
     var IsStatic := (FScanner.getToken = TSyntaxKind.StaticKeyword);
     if IsStatic then
-      ReadIdentifier(True);
+      ReadIdentifier([TSyntaxKind.NewKeyword], True);
 
     var Member := ReadStructureMember;
     Member.Visibility := Visibility;
@@ -481,8 +489,13 @@ begin
   // ensure the current token is an open brace
   AssumeToken(TSyntaxKind.OpenBraceToken);
 
-  while ReadIdentifier do
+  while ReadIdentifier([TSyntaxKind.NewKeyword]) do
+  begin
     Result.Members.Add(ReadStructureMember);
+  end;
+
+  // ensure the current token is a close brace
+  AssumeToken(TSyntaxKind.CloseBraceToken);
 end;
 
 function TTranslator.ReadModuleExpression: TModuleExpression;
@@ -547,12 +560,20 @@ begin
 
   // create a import
   Result := TImportExpression.Create(Self as IExpressionOwner);
+
+  ReadIdentifier(True);
+
+  ReadToken(TSyntaxKind.EqualsToken, True);
+
+  ReadIdentifier(True);
+
+  ReadToken(TSyntaxKind.SemicolonToken, True);
 end;
 
 function TTranslator.ReadVariableExpression: TVariableExpression;
 begin
   // sanity check
-  AssumeToken(TSyntaxKind.FunctionKeyword);
+  AssumeToken(TSyntaxKind.VarKeyword);
 
   // create a variable
   Result := TVariableExpression.Create(Self as IExpressionOwner);
@@ -563,6 +584,8 @@ begin
 
   // read colon
   ReadToken(TSyntaxKind.ColonToken, True);
+
+  Result.&Type := ReadType;
 end;
 
 procedure TTranslator.HandleScanError;
