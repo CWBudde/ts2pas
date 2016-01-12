@@ -167,6 +167,7 @@ type
   protected
     function GetAsCode: String; override;
   public
+    property &Type: TCustomType;
   end;
 
   TModuleExpression = class(TNamedExpression)

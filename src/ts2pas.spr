@@ -19,6 +19,7 @@ begin
   end);
 end;
 
-ConvertFile('flot.d.ts', 'flot.pas');
-ConvertFile('box2dweb.d.ts', 'box2dweb.pas');
-ConvertFile('typescript.d.ts', 'typescript.pas');
+// ConvertFile('TypeScriptDefs\flot.d.ts', 'TypeScriptDefs\flot.pas');
+// ConvertFile('TypeScriptDefs\box2dweb.d.ts', 'TypeScriptDefs\box2dweb.pas');
+ConvertFile('TypeScriptDefs\angular.d.ts', 'TypeScriptDefs\angular.pas');
+//ConvertFile('TypeScriptDefs\typescript.d.ts', 'TypeScriptDefs\typescript.pas');
