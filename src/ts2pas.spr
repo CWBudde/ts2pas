@@ -9,11 +9,16 @@ begin
     var InputText := data.toString('utf8');
 
     var Translator := TTranslator.Create;
+    Translator.Name := InputFile.Split('.')[0];
     var OutputText := Translator.Translate(InputText);
 
     FileSystem.writeFile(OutputFile, OutputText, lambda(err: Variant)
       end);
+
+    Translator := nil;
   end);
 end;
 
 ConvertFile('flot.d.ts', 'flot.pas');
+ConvertFile('box2dweb.d.ts', 'box2dweb.pas');
+ConvertFile('typescript.d.ts', 'typescript.pas');
