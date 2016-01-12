@@ -3,163 +3,35 @@ unit ts2pas.Translator;
 interface
 
 uses
-  TypeScript;
+  TypeScript, ts2pas.Expressions;
 
 type
-  TCustomType = class
-  protected
-    function GetName: String; virtual; abstract;
-  public
-    property Name: String read GetName;
-    property IsArray: Boolean;
-  end;
-
-  TVariantType = class(TCustomType)
-  protected
-    function GetName: String; override;
-  end;
-
-  TFloatType = class(TCustomType)
-  protected
-    function GetName: String; override;
-  end;
-
-  TStringType = class(TCustomType)
-  protected
-    function GetName: String; override;
-  end;
-
-  TBooleanType = class(TCustomType)
-  protected
-    function GetName: String; override;
-  end;
-
-  TFunctionParameter = class
-    property Name: String;
-    property &Type: TCustomType;
-    property Nullable: Boolean;
-  end;
-
-  TFunctionType = class(TCustomType)
-  protected
-    function GetName: String; override;
-  public
-    property Name: String read GetName;
-    property Result: TCustomType;
-    property Parameters: array of TFunctionParameter;
-  end;
-
-  TObjectType = class(TCustomType)
-  protected
-    function GetName: String; override;
-  end;
-
-  TNamedType = class(TCustomType)
-  private
-    FName: String;
-  protected
-    function GetName: String; override;
-  public
-    constructor Create(AName: String);
-    property Name: String read GetName;
-  end;
-
-  TDefinition = class
-  public
-    property Name: String;
-  end;
-
-  TEnumerationItem = class
-  public
-    property Name: String;
-    property Value: String;
-  end;
-
-  TEnumeration = class
-  public
-    property Items: array of TEnumerationItem;
-    property Name: String;
-  end;
-
-  TFunction = class
-  public
-    property Name: String;
-    property &Type: TFunctionType;
-  end;
-
-  TCustomInterfaceMember = class
-  public
-    property Name: String;
-  end;
-
-  TField = class(TCustomInterfaceMember)
-  public
-    property Nullable: Boolean;
-    property &Type: TCustomType;
-  end;
-
-  TMethod = class(TCustomInterfaceMember)
-  public
-    property &Type: TFunctionType;
-  end;
-
-  TInterface = class
-  public
-    property Name: String;
-    property Extends: array of String;
-    property Implements: array of String;
-    property Members: array of TCustomInterfaceMember;
-  end;
-
-  TImport = class
-  public
-    property Name: String;
-  end;
-
-  TVariable = class
-  public
-    property Name: String;
-  end;
-
-  TModule = class
-  public
-    property Name: String;
-    property Variables: array of TVariable;
-  end;
-
-  TDeclaration = class
-  public
-    property Name: String;
-    property Functions: array of TFunction;
-    property Variables: array of TVariable;
-  end;
-
-  TTranslator = class
+  TTranslator = class(IExpressionOwner)
   private
     FScanner: JScanner;
 
-    FDeclarations: array of TDeclaration;
-    FModules: array of TModule;
+    FDeclarations: array of TDeclarationExpression;
+    FModules: array of TModuleExpression;
+    FInterfaces: array of TInterfaceExpression;
 
-    function ReadDeclaration: TDeclaration;
+    function ReadDeclarationExpression: TDeclarationExpression;
     function ReadEnumerationItem: TEnumerationItem;
-    function ReadEnumeration: TEnumeration;
+    function ReadEnumerationExpression: TEnumerationExpression;
     function ReadObjectType: TObjectType;
-    function ReadField(Name: String; Nullable: Boolean): TField;
-    function ReadMethod(Name: String): TMethod;
+    function ReadFieldExpression: TFieldExpression;
+    function ReadMethodExpression: TMethodExpression;
     function ReadFunctionParameter: TFunctionParameter;
     function ReadFunctionType: TFunctionType;
-    function ReadFunction: TFunction;
-    function ReadImport: TImport;
-    function ReadInterface: TInterface;
-    function ReadInterfaceMember: TCustomInterfaceMember;
-    function ReadModule: TModule;
+    function ReadFunctionExpression: TFunctionExpression;
+    function ReadImportExpression: TImportExpression;
+    function ReadStructureMember: TCustomStructureMember;
+    function ReadInterfaceExpression: TInterfaceExpression;
+    function ReadClassExpression: TClassExpression;
+    function ReadModuleExpression: TModuleExpression;
     function ReadScopedName: String;
     function ReadType: TCustomType;
-    function ReadVariable: TVariable;
+    function ReadVariableExpression: TVariableExpression;
     procedure HandleScanError;
-
-    procedure ReadDefinition;
 
     procedure AssumeIdentifier;
     procedure AssumeToken(Token: TSyntaxKind); overload;
@@ -168,77 +40,21 @@ type
     function ReadToken: TSyntaxKind; overload;
     function ReadToken(Token: TSyntaxKind; Required: Boolean = False): Boolean; overload;
     function ReadToken(Tokens: array of TSyntaxKind; Required: Boolean = False): Boolean; overload;
+  protected
+    procedure ReadDefinition; virtual;
+    function BuildPascalHeader: String; virtual;
   public
     constructor Create;
 
     function Translate(Source: String): String;
+
+    property Name: String;
   end;
 
 implementation
 
 uses
   NodeJS.Core;
-
-
-{ TVariantType }
-
-function TVariantType.GetName: String;
-begin
-  Result := 'Variant';
-end;
-
-
-{ TFloatType }
-
-function TFloatType.GetName: String;
-begin
-  Result := 'Float';
-end;
-
-
-{ TBooleanType }
-
-function TBooleanType.GetName: String;
-begin
-  Result := 'Boolean';
-end;
-
-
-{ TStringType }
-
-function TStringType.GetName: String;
-begin
-  Result := 'Boolean';
-end;
-
-
-{ TFunctionType }
-
-function TFunctionType.GetName: String;
-begin
-  Result := 'function';
-end;
-
-
-{ TNamedType }
-
-constructor TNamedType.Create(AName: String);
-begin
-  FName := AName
-end;
-
-function TNamedType.GetName: String;
-begin
-  Result := FName;
-end;
-
-
-{ TObjectType }
-
-function TObjectType.GetName: String;
-begin
-  Result := 'record';
-end;
 
 
 { TTranslator }
@@ -302,13 +118,13 @@ begin
       TSyntaxKind.ExportKeyword:
         continue;
       TSyntaxKind.DeclareKeyword:
-        FDeclarations.Add(ReadDeclaration);
+        FDeclarations.Add(ReadDeclarationExpression);
       TSyntaxKind.InterfaceKeyword:
-        ReadInterface;
+        FInterfaces.Add(ReadInterfaceExpression);
       TSyntaxKind.ModuleKeyword:
-        FModules.Add(ReadModule);
+        FModules.Add(ReadModuleExpression);
       TSyntaxKind.ImportKeyword:
-        ReadImport;
+        ReadImportExpression;
       TSyntaxKind.EndOfFileToken:
         Exit;
       else
@@ -317,27 +133,31 @@ begin
   end;
 end;
 
-function TTranslator.ReadDeclaration: TDeclaration;
+function TTranslator.ReadDeclarationExpression: TDeclarationExpression;
 begin
   AssumeToken(TSyntaxKind.DeclareKeyword);
 
-  Result := TDeclaration.Create;
+  Result := TDeclarationExpression.Create(Self as IExpressionOwner);
 
   while ReadToken > TSyntaxKind.Unknown do
   begin
     case FScanner.GetToken of
+      TSyntaxKind.DeclareKeyword:
+        continue;
       TSyntaxKind.VarKeyword:
-        Result.Variables.Add(ReadVariable);
+        Result.Variables.Add(ReadVariableExpression);
       TSyntaxKind.FunctionKeyword:
-        Result.Functions.Add(ReadFunction);
+        Result.Functions.Add(ReadFunctionExpression);
       TSyntaxKind.ModuleKeyword:
-        ReadModule;
+        Result.Modules.Add(ReadModuleExpression);
       TSyntaxKind.InterfaceKeyword:
-        ReadInterface;
+        Result.Interfaces.Add(ReadInterfaceExpression);
       TSyntaxKind.ClassKeyword:
-        ReadInterface;
+        Result.Classes.Add(ReadClassExpression);
       TSyntaxKind.EnumKeyword:
-        ReadEnumeration;
+        ReadEnumerationExpression;
+      TSyntaxKind.EndOfFileToken:
+        Exit;
       else
         HandleScanError;
     end;
@@ -350,7 +170,7 @@ begin
   AssumeIdentifier;
 
   // create an enumeration
-  Result := TEnumerationItem.Create;
+  Result := TEnumerationItem.Create(Self as IExpressionOwner);
 
   // set item name
   Result.Name := FScanner.GetTokenText;
@@ -365,13 +185,13 @@ begin
   AssumeToken(TSyntaxKind.CommaToken);
 end;
 
-function TTranslator.ReadEnumeration: TEnumeration;
+function TTranslator.ReadEnumerationExpression: TEnumerationExpression;
 begin
   // sanity check
   AssumeToken(TSyntaxKind.EnumKeyword);
 
   // create an enumeration
-  Result := TEnumeration.Create;
+  Result := TEnumerationExpression.Create(Self as IExpressionOwner);
 
   // read name
   ReadIdentifier(True);
@@ -390,13 +210,13 @@ begin
   AssumeToken(TSyntaxKind.CloseBraceToken);
 end;
 
-function TTranslator.ReadFunction: TFunction;
+function TTranslator.ReadFunctionExpression: TFunctionExpression;
 begin
   // sanity check
   AssumeToken(TSyntaxKind.VarKeyword);
 
   // create a function
-  Result := TFunction.Create;
+  Result := TFunctionExpression.Create(Self as IExpressionOwner);
 
   // read function name
   ReadIdentifier(True);
@@ -412,7 +232,7 @@ begin
   // sanity check
   AssumeToken(TSyntaxKind.OpenParenToken);
 
-  Result := TFunctionType.Create;
+  Result := TFunctionType.Create(Self as IExpressionOwner);
   while ReadIdentifier do
   begin
     Result.Parameters.Add(ReadFunctionParameter);
@@ -428,7 +248,7 @@ begin
   AssumeToken(TSyntaxKind.CloseParenToken);
 
   if ReadToken([TSyntaxKind.ColonToken, TSyntaxKind.EqualsGreaterThanToken]) then
-    Result.Result := ReadType;
+    Result.ResultType := ReadType;
 end;
 
 function TTranslator.ReadFunctionParameter: TFunctionParameter;
@@ -436,7 +256,7 @@ begin
   // sanity check
   AssumeIdentifier;
 
-  Result := TFunctionParameter.Create;
+  Result := TFunctionParameter.Create(Self as IExpressionOwner);
   Result.Name := FScanner.GetTokenText;
 
   // either accept ? or : or )
@@ -457,7 +277,7 @@ begin
   AssumeToken(TSyntaxKind.OpenBraceToken);
 
   // create an object type
-  Result := TObjectType.Create;
+  Result := TObjectType.Create(Self as IExpressionOwner);
 
   // skip for now
   while FScanner.Scan <> TSyntaxKind.CloseBraceToken do;
@@ -469,28 +289,33 @@ begin
   ReadToken([TSyntaxKind.Identifier, TSyntaxKind.AnyKeyword,
     TSyntaxKind.OpenBraceToken, TSyntaxKind.NumberKeyword,
     TSyntaxKind.StringKeyword, TSyntaxKind.BooleanKeyword,
-    TSyntaxKind.OpenParenToken], True);
+    TSyntaxKind.VoidKeyword, TSyntaxKind.OpenParenToken], True);
   case FScanner.GetToken of
     TSyntaxKind.Identifier:
-      Result := TNamedType.Create(ReadScopedName);
+      Result := TNamedType.Create(Self as IExpressionOwner, ReadScopedName);
     TSyntaxKind.AnyKeyword:
       begin
-        Result := TVariantType.Create;
+        Result := TVariantType.Create(Self as IExpressionOwner);
         ReadToken;
       end;
     TSyntaxKind.NumberKeyword:
       begin
-        Result := TFloatType.Create;
+        Result := TFloatType.Create(Self as IExpressionOwner);
+        ReadToken;
+      end;
+    TSyntaxKind.VoidKeyword:
+      begin
+        Result := nil;
         ReadToken;
       end;
     TSyntaxKind.StringKeyword:
       begin
-        Result := TStringType.Create;
+        Result := TStringType.Create(Self as IExpressionOwner);
         ReadToken;
       end;
     TSyntaxKind.BooleanKeyword:
       begin
-        Result := TBooleanType.Create;
+        Result := TBooleanType.Create(Self as IExpressionOwner);
         ReadToken;
       end;
     TSyntaxKind.OpenParenToken:
@@ -513,25 +338,23 @@ begin
   end;
 end;
 
-function TTranslator.ReadField(Name: String; Nullable: Boolean): TField;
+function TTranslator.ReadFieldExpression: TFieldExpression;
 begin
-  Result := TField.Create;
-  Result.Name := Name;
-  Result.Nullable := Nullable;
+  Result := TFieldExpression.Create(Self as IExpressionOwner);
   Result.Type := ReadType;
 
   AssumeToken(TSyntaxKind.SemicolonToken);
 end;
 
-function TTranslator.ReadMethod(Name: String): TMethod;
+function TTranslator.ReadMethodExpression: TMethodExpression;
 begin
-  Result := TMethod.Create;
+  Result := TMethodExpression.Create(Self as IExpressionOwner);
   Result.Type := ReadFunctionType;
 
   AssumeToken(TSyntaxKind.SemicolonToken);
 end;
 
-function TTranslator.ReadInterfaceMember: TCustomInterfaceMember;
+function TTranslator.ReadStructureMember: TCustomStructureMember;
 begin
   // sanity check
   AssumeIdentifier;
@@ -548,27 +371,32 @@ begin
 
   case FScanner.getToken of
     TSyntaxKind.ColonToken:
-      Result := ReadField(MemberName, Nullable);
+      begin
+        Result := ReadFieldExpression;
+        TFieldExpression(Result).Nullable := Nullable;
+      end;
     TSyntaxKind.OpenParenToken:
-      Result := ReadMethod(MemberName);
+      Result := ReadMethodExpression;
   end;
+
+  Result.Name := MemberName;
 
   AssumeToken(TSyntaxKind.SemicolonToken);
 end;
 
-function TTranslator.ReadInterface: TInterface;
+function TTranslator.ReadClassExpression: TClassExpression;
 begin
   // sanity check
-  AssumeToken(TSyntaxKind.InterfaceKeyword);
+  AssumeToken(TSyntaxKind.ClassKeyword);
 
   // create a interface
-  Result := TInterface.Create;
+  Result := TClassExpression.Create(Self as IExpressionOwner);
 
   // read interface name
   ReadIdentifier(True);
   Result.Name := FScanner.getTokenText;
 
-  Console.Log('Read Interface: ' + Result.Name);
+  Console.Log('Read class: ' + Result.Name);
 
   ReadToken;
   while FScanner.getToken in [TSyntaxKind.ExtendsKeyword, TSyntaxKind.ImplementsKeyword] do
@@ -589,27 +417,87 @@ begin
   AssumeToken(TSyntaxKind.OpenBraceToken);
 
   while ReadIdentifier do
-    Result.Members.Add(ReadInterfaceMember);
+  begin
+    var Visibility := vPublic;
+    case FScanner.getToken of
+      TSyntaxKind.PublicKeyword:
+        begin
+          Visibility := vPublic;
+          ReadIdentifier(True);
+        end;
+      TSyntaxKind.ProtectedKeyword:
+        begin
+          Visibility := vProtected;
+          ReadIdentifier(True);
+        end;
+      TSyntaxKind.PrivateKeyword:
+        begin
+          Visibility := vPrivate;
+          ReadIdentifier(True);
+        end;
+    end;
+
+    var IsStatic := (FScanner.getToken = TSyntaxKind.StaticKeyword);
+    if IsStatic then
+      ReadIdentifier(True);
+
+    var Member := ReadStructureMember;
+    Member.Visibility := Visibility;
+    Member.IsStatic := IsStatic;
+
+    Result.Members.Add(Member);
+  end;
 end;
 
-function TTranslator.ReadModule: TModule;
+function TTranslator.ReadInterfaceExpression: TInterfaceExpression;
+begin
+  // sanity check
+  AssumeToken(TSyntaxKind.InterfaceKeyword);
+
+  // create a interface
+  Result := TInterfaceExpression.Create(Self as IExpressionOwner);
+
+  // read interface name
+  ReadIdentifier(True);
+  Result.Name := FScanner.getTokenText;
+
+  Console.Log('Read interface: ' + Result.Name);
+
+  ReadToken;
+  while FScanner.getToken in [TSyntaxKind.ExtendsKeyword, TSyntaxKind.ImplementsKeyword] do
+  begin
+    var List := if FScanner.getToken = TSyntaxKind.ExtendsKeyword then
+      Result.Extends else Result.Implements;
+
+    ReadIdentifier(True);
+    List.Add(ReadScopedName);
+    while FScanner.getToken = TSyntaxKind.CommaToken do
+    begin
+      ReadIdentifier(True);
+      List.Add(ReadScopedName);
+    end;
+  end;
+
+  // ensure the current token is an open brace
+  AssumeToken(TSyntaxKind.OpenBraceToken);
+
+  while ReadIdentifier do
+    Result.Members.Add(ReadStructureMember);
+end;
+
+function TTranslator.ReadModuleExpression: TModuleExpression;
 begin
   // sanity check
   AssumeToken(TSyntaxKind.ModuleKeyword);
 
   // create a module
-  Result := TModule.Create;
+  Result := TModuleExpression.Create(Self as IExpressionOwner);
 
   // read name
   ReadIdentifier(True);
-  Result.Name := FScanner.GetTokenText;
+  Result.Name := ReadScopedName;
 
-  // eventually read scoped name
-  while ReadToken(TSyntaxKind.DotToken) do
-  begin
-    ReadIdentifier(True);
-    Result.Name := Result.Name + '.' + FScanner.GetTokenText;
-  end;
+  Console.Log('Read module: ' + Result.Name);
 
   // ensure that the next token is an open brace
   AssumeToken(TSyntaxKind.OpenBraceToken);
@@ -618,24 +506,26 @@ begin
     TSyntaxKind.EnumKeyword, TSyntaxKind.ImportKeyword,
     TSyntaxKind.InterfaceKeyword, TSyntaxKind.VarKeyword]) do
   begin
-    // ignore export token (for now)
     case FScanner.GetToken of
       TSyntaxKind.ClassKeyword:
-        ReadInterface;
+        Result.Classes.Add(ReadClassExpression);
       TSyntaxKind.ExportKeyword:
-        continue;
+        continue; // ignore export token (for now)
       TSyntaxKind.EnumKeyword:
-        ReadEnumeration;
+        ReadEnumerationExpression;
       TSyntaxKind.ImportKeyword:
-        ReadImport;
+        ReadImportExpression;
       TSyntaxKind.InterfaceKeyword:
-        ReadInterface;
+        Result.Interfaces.Add(ReadInterfaceExpression);
       TSyntaxKind.VarKeyword:
-        Result.Variables.Add(ReadVariable);
+        Result.Variables.Add(ReadVariableExpression);
       else
         HandleScanError;
     end;
   end;
+
+  // ensure that the next token is an open brace
+  AssumeToken(TSyntaxKind.CloseBraceToken);
 end;
 
 function TTranslator.ReadScopedName: String;
@@ -650,22 +540,22 @@ begin
   end;
 end;
 
-function TTranslator.ReadImport: TImport;
+function TTranslator.ReadImportExpression: TImportExpression;
 begin
   // sanity check
   AssumeToken(TSyntaxKind.ImportKeyword);
 
   // create a import
-  Result := TImport.Create;
+  Result := TImportExpression.Create(Self as IExpressionOwner);
 end;
 
-function TTranslator.ReadVariable: TVariable;
+function TTranslator.ReadVariableExpression: TVariableExpression;
 begin
   // sanity check
   AssumeToken(TSyntaxKind.FunctionKeyword);
 
   // create a variable
-  Result := TVariable.Create;
+  Result := TVariableExpression.Create(Self as IExpressionOwner);
 
   // read variable identified
   ReadIdentifier(True);
@@ -682,6 +572,20 @@ begin
     [FScanner.getTokenText, FScanner.getTokenPos]));
 end;
 
+function TTranslator.BuildPascalHeader: String;
+begin
+  Result := 'unit ' + Name + ';' + CRLF + CRLF;
+  Result += 'interface' + CRLF + CRLF;
+
+  for var Declaration in FDeclarations do
+    Result := Result + Declaration.AsCode;
+
+  for var Module in FModules do
+    Result := Result + Module.AsCode;
+
+  for var &Interface in FInterfaces do
+    Result := Result + &Interface.AsCode;
+end;
 
 function TTranslator.Translate(Source: String): String;
 begin
@@ -695,7 +599,7 @@ begin
       Console.Log(E.Message);
   end;
 
-  Result := Source;
+  Result := BuildPascalHeader;
 end;
 
 end.
