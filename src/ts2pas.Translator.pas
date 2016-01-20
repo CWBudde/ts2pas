@@ -25,6 +25,7 @@ type
     function ReadFunctionExpression: TFunctionExpression;
     function ReadImportExpression: TImportExpression;
     function ReadStructureMember: TCustomStructureMember;
+    function ReadCallbackInterface: TCallbackExpression;
     function ReadInterfaceExpression: TInterfaceExpression;
     function ReadClassExpression: TClassExpression;
     function ReadModuleExpression: TModuleExpression;
@@ -351,7 +352,7 @@ begin
   Result := TFieldExpression.Create(Self as IExpressionOwner);
   Result.Type := ReadType;
 
-  AssumeToken(TSyntaxKind.SemicolonToken);
+  AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CommaToken]);
 end;
 
 function TTranslator.ReadMethodExpression: TMethodExpression;
@@ -362,10 +363,25 @@ begin
   AssumeToken(TSyntaxKind.SemicolonToken);
 end;
 
+function TTranslator.ReadCallbackInterface: TCallbackExpression;
+begin
+  Result := TCallbackExpression.Create(Self as IExpressionOwner);
+  Result.Type := ReadFunctionType;
+
+  AssumeToken(TSyntaxKind.SemicolonToken);
+end;
+
 function TTranslator.ReadStructureMember: TCustomStructureMember;
 begin
   // sanity check
-  AssumeIdentifier([TSyntaxKind.NewKeyword]);
+  AssumeIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken]);
+
+  if FScanner.getToken = TSyntaxKind.OpenParenToken then
+  begin
+    Console.log('Open Peran');
+    Result := ReadCallbackInterface;
+    Exit;
+  end;
 
   // create a interface member
   var MemberName := FScanner.getTokenText;
@@ -389,7 +405,7 @@ begin
 
   Result.Name := MemberName;
 
-  AssumeToken(TSyntaxKind.SemicolonToken);
+  AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CommaToken]);
 end;
 
 function TTranslator.ReadClassExpression: TClassExpression;
@@ -447,7 +463,7 @@ begin
 
     var IsStatic := (FScanner.getToken = TSyntaxKind.StaticKeyword);
     if IsStatic then
-      ReadIdentifier([TSyntaxKind.NewKeyword], True);
+      ReadIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken], True);
 
     var Member := ReadStructureMember;
     Member.Visibility := Visibility;
@@ -489,7 +505,7 @@ begin
   // ensure the current token is an open brace
   AssumeToken(TSyntaxKind.OpenBraceToken);
 
-  while ReadIdentifier([TSyntaxKind.NewKeyword]) do
+  while ReadIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken]) do
   begin
     Result.Members.Add(ReadStructureMember);
   end;
@@ -507,7 +523,7 @@ begin
   Result := TModuleExpression.Create(Self as IExpressionOwner);
 
   // read name
-  ReadIdentifier(True);
+  ReadIdentifier([TSyntaxKind.StringLiteral], True);
   Result.Name := ReadScopedName;
 
   Console.Log('Read module: ' + Result.Name);
@@ -543,7 +559,7 @@ end;
 
 function TTranslator.ReadScopedName: String;
 begin
-  AssumeIdentifier;
+  AssumeIdentifier([TSyntaxKind.StringLiteral]);
   Result := FScanner.getTokenText;
 
   while ReadToken(TSyntaxKind.DotToken) do
