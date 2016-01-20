@@ -18,15 +18,16 @@ type
     function ReadEnumerationItem: TEnumerationItem;
     function ReadEnumerationExpression: TEnumerationExpression;
     function ReadObjectType: TObjectType;
+    function ReadCallbackInterface: TCallbackExpression;
     function ReadFieldExpression: TFieldExpression;
     function ReadMethodExpression: TMethodExpression;
     function ReadFunctionParameter: TFunctionParameter;
     function ReadFunctionType: TFunctionType;
     function ReadFunctionExpression: TFunctionExpression;
     function ReadImportExpression: TImportExpression;
-    function ReadStructureMember: TCustomStructureMember;
-    function ReadCallbackInterface: TCallbackExpression;
+    function ReadInterfaceMember: TCustomStructureMember;
     function ReadInterfaceExpression: TInterfaceExpression;
+    function ReadClassMember: TCustomStructureMember;
     function ReadClassExpression: TClassExpression;
     function ReadModuleExpression: TModuleExpression;
     function ReadScopedName: String;
@@ -242,7 +243,7 @@ begin
   AssumeToken(TSyntaxKind.OpenParenToken);
 
   Result := TFunctionType.Create(Self as IExpressionOwner);
-  while ReadIdentifier do
+  while ReadIdentifier([TSyntaxKind.DotDotDotToken]) do
   begin
     Result.Parameters.Add(ReadFunctionParameter);
 
@@ -261,9 +262,15 @@ begin
 end;
 
 function TTranslator.ReadFunctionParameter: TFunctionParameter;
+var
+  OpenArray: Boolean;
 begin
   // sanity check
-  AssumeIdentifier;
+  AssumeIdentifier([TSyntaxKind.DotDotDotToken]);
+
+  OpenArray := FScanner.GetToken = TSyntaxKind.DotDotDotToken;
+  if OpenArray then
+    ReadIdentifier(True);
 
   Result := TFunctionParameter.Create(Self as IExpressionOwner);
   Result.Name := FScanner.GetTokenText;
@@ -347,12 +354,29 @@ begin
   end;
 end;
 
+function TTranslator.ReadCallbackInterface: TCallbackExpression;
+begin
+  Result := TCallbackExpression.Create(Self as IExpressionOwner);
+  Result.Type := ReadFunctionType;
+
+  AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken]);
+end;
+
 function TTranslator.ReadFieldExpression: TFieldExpression;
 begin
   Result := TFieldExpression.Create(Self as IExpressionOwner);
-  Result.Type := ReadType;
+  Result.Type.Add(ReadType);
 
-  AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CommaToken]);
+  while FScanner.getToken = TSyntaxKind.BarToken do
+  begin
+    ReadToken(TSyntaxKind.OpenParenToken, True);
+    Result.Type.Add(ReadType);
+    AssumeToken(TSyntaxKind.CloseParenToken, True);
+    ReadToken;
+  end;
+
+  AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken,
+    TSyntaxKind.CommaToken]);
 end;
 
 function TTranslator.ReadMethodExpression: TMethodExpression;
@@ -360,52 +384,43 @@ begin
   Result := TMethodExpression.Create(Self as IExpressionOwner);
   Result.Type := ReadFunctionType;
 
-  AssumeToken(TSyntaxKind.SemicolonToken);
+  AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken]);
 end;
 
-function TTranslator.ReadCallbackInterface: TCallbackExpression;
-begin
-  Result := TCallbackExpression.Create(Self as IExpressionOwner);
-  Result.Type := ReadFunctionType;
-
-  AssumeToken(TSyntaxKind.SemicolonToken);
-end;
-
-function TTranslator.ReadStructureMember: TCustomStructureMember;
+function TTranslator.ReadClassMember: TCustomStructureMember;
 begin
   // sanity check
   AssumeIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken]);
 
   if FScanner.getToken = TSyntaxKind.OpenParenToken then
+    Result := ReadCallbackInterface
+  else
   begin
-    Console.log('Open Peran');
-    Result := ReadCallbackInterface;
-    Exit;
+    // create a interface member
+    var MemberName := FScanner.getTokenText;
+
+    ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken, TSyntaxKind.OpenParenToken], True);
+
+    // check if type is nullable
+    var Nullable := FScanner.getToken = TSyntaxKind.QuestionToken;
+    if Nullable then
+      ReadToken(TSyntaxKind.ColonToken, True);
+
+    case FScanner.getToken of
+      TSyntaxKind.ColonToken:
+        begin
+          Result := ReadFieldExpression;
+          TFieldExpression(Result).Nullable := Nullable;
+        end;
+      TSyntaxKind.OpenParenToken:
+        Result := ReadMethodExpression;
+    end;
+
+    Result.Name := MemberName;
   end;
 
-  // create a interface member
-  var MemberName := FScanner.getTokenText;
-
-  ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken, TSyntaxKind.OpenParenToken], True);
-
-  // check if type is nullable
-  var Nullable := FScanner.getToken = TSyntaxKind.QuestionToken;
-  if Nullable then
-    ReadToken(TSyntaxKind.ColonToken, True);
-
-  case FScanner.getToken of
-    TSyntaxKind.ColonToken:
-      begin
-        Result := ReadFieldExpression;
-        TFieldExpression(Result).Nullable := Nullable;
-      end;
-    TSyntaxKind.OpenParenToken:
-      Result := ReadMethodExpression;
-  end;
-
-  Result.Name := MemberName;
-
-  AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CommaToken]);
+  AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CommaToken,
+    TSyntaxKind.CloseBraceToken]);
 end;
 
 function TTranslator.ReadClassExpression: TClassExpression;
@@ -465,12 +480,48 @@ begin
     if IsStatic then
       ReadIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken], True);
 
-    var Member := ReadStructureMember;
+    var Member := ReadClassMember;
     Member.Visibility := Visibility;
     Member.IsStatic := IsStatic;
 
     Result.Members.Add(Member);
   end;
+end;
+
+function TTranslator.ReadInterfaceMember: TCustomStructureMember;
+begin
+  // sanity check
+  AssumeIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken]);
+
+  if FScanner.getToken = TSyntaxKind.OpenParenToken then
+    Result := ReadCallbackInterface
+  else
+  begin
+    // create a interface member
+    var MemberName := FScanner.getTokenText;
+
+    ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken, TSyntaxKind.OpenParenToken], True);
+
+    // check if type is nullable
+    var Nullable := FScanner.getToken = TSyntaxKind.QuestionToken;
+    if Nullable then
+      ReadToken(TSyntaxKind.ColonToken, True);
+
+    case FScanner.getToken of
+      TSyntaxKind.ColonToken:
+        begin
+          Result := ReadFieldExpression;
+          TFieldExpression(Result).Nullable := Nullable;
+        end;
+      TSyntaxKind.OpenParenToken:
+        Result := ReadMethodExpression;
+    end;
+
+    Result.Name := MemberName;
+  end;
+
+  AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CommaToken,
+    TSyntaxKind.CloseBraceToken]);
 end;
 
 function TTranslator.ReadInterfaceExpression: TInterfaceExpression;
@@ -507,7 +558,11 @@ begin
 
   while ReadIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken]) do
   begin
-    Result.Members.Add(ReadStructureMember);
+    Result.Members.Add(ReadInterfaceMember);
+
+    // check if we're already at the close brace
+    if FScanner.getToken = TSyntaxKind.CloseBraceToken then
+      Break;
   end;
 
   // ensure the current token is a close brace
@@ -607,7 +662,7 @@ end;
 procedure TTranslator.HandleScanError;
 begin
 
-  raise Exception.Create(Format('Unknown token (%s) in this context. At pos %d',
+  raise Exception.Create(Format('Unknown token %s in this context. At pos %d',
     [FScanner.getTokenText, FScanner.getTokenPos]));
 end;
 

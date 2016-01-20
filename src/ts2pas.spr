@@ -19,7 +19,9 @@ begin
   end);
 end;
 
+ConvertFile('TypeScriptDefs\amplifyjs.d.ts', 'TypeScriptDefs\amplifyjs.pas');
+//ConvertFile('TypeScriptDefs\amazon-product-api.d.ts', 'TypeScriptDefs\amazon-product-api.pas');
 // ConvertFile('TypeScriptDefs\flot.d.ts', 'TypeScriptDefs\flot.pas');
 // ConvertFile('TypeScriptDefs\box2dweb.d.ts', 'TypeScriptDefs\box2dweb.pas');
-ConvertFile('TypeScriptDefs\angular.d.ts', 'TypeScriptDefs\angular.pas');
+//ConvertFile('TypeScriptDefs\angular.d.ts', 'TypeScriptDefs\angular.pas');
 //ConvertFile('TypeScriptDefs\typescript.d.ts', 'TypeScriptDefs\typescript.pas');
