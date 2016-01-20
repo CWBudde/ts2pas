@@ -145,6 +145,13 @@ type
     property &Type: TFunctionType;
   end;
 
+  TCallbackExpression = class(TCustomStructureMember)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &Type: TFunctionType;
+  end;
+
   TStructureExpression = class(TNamedExpression)
   protected
     function GetAsCode: String; override;
@@ -400,6 +407,20 @@ end;
 function TMethodExpression.GetAsCode: String;
 begin
   Result := GetIndentionString + 'function ' + Name;
+
+  if Assigned(&Type) then
+    Result += &Type.AsCode;
+
+  // line break
+  Result += ';' + CRLF;
+end;
+
+
+{ TCallbackExpression }
+
+function TCallbackExpression.GetAsCode: String;
+begin
+  Result := GetIndentionString + 'callback ' + Name;
 
   if Assigned(&Type) then
     Result += &Type.AsCode;
