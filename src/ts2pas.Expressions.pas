@@ -135,7 +135,7 @@ type
     function GetAsCode: String; override;
   public
     property Nullable: Boolean;
-    property &Type: TCustomType;
+    property &Type: array of TCustomType;
   end;
 
   TMethodExpression = class(TCustomStructureMember)
@@ -393,7 +393,7 @@ end;
 
 function TFieldExpression.GetAsCode: String;
 begin
-  Result := GetIndentionString + Name + ': ' + &Type.AsCode + ';';
+  Result := GetIndentionString + Name + ': ' + &Type[0].AsCode + ';';
   if Nullable then
     Result += ' // nullable';
 
