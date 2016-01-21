@@ -8,12 +8,12 @@ const
 type
   TVisibility = (vPublic, vProtected, vPrivate);
 
-  IExpressionOwner = interface
+  IDeclarationOwner = interface
   end;
 
-  TCustomExpression = class
+  TCustomDeclaration = class
   private
-    FOwner: IExpressionOwner;
+    FOwner: IDeclarationOwner;
     class var IndentionLevel: Integer;
   protected
     function GetAsCode: String; virtual; abstract;
@@ -22,17 +22,17 @@ type
     class procedure EndIndention;
     class function GetIndentionString: String;
   public
-    constructor Create(Owner: IExpressionOwner); virtual;
+    constructor Create(Owner: IDeclarationOwner); virtual;
 
     property AsCode: String read GetAsCode;
   end;
 
-  TNamedExpression = class(TCustomExpression)
+  TNamedDeclaration = class(TCustomDeclaration)
   public
     property Name: String;
   end;
 
-  TCustomType = class(TCustomExpression)
+  TCustomType = class(TCustomDeclaration)
   protected
     function GetName: String; virtual; abstract;
     function GetAsCode: String; override;
@@ -61,7 +61,10 @@ type
     function GetName: String; override;
   end;
 
-  TFunctionParameter = class(TNamedExpression)
+  TEnumDeclaration = class(TNamedDeclaration)
+  end;
+
+  TFunctionParameter = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
@@ -91,16 +94,25 @@ type
   protected
     function GetName: String; override;
   public
-    constructor Create(Owner: IExpressionOwner; AName: String); reintroduce;
+    constructor Create(Owner: IDeclarationOwner; AName: String); reintroduce;
     property Name: String read GetName;
   end;
 
-  TDefinitionExpression = class(TNamedExpression)
+  TExportDeclaration = class(TNamedDeclaration)
+  private
+    FDefault: Boolean;
+  protected
+    function GetAsCode: String; override;
+  public
+    property Default: Boolean read FDefault write FDefault;
+  end;
+
+  TDefinitionDeclaration = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   end;
 
-  TEnumerationItem = class(TCustomExpression)
+  TEnumerationItem = class(TCustomDeclaration)
   protected
     function GetAsCode: String; override;
   public
@@ -108,29 +120,29 @@ type
     property Value: String;
   end;
 
-  TEnumerationExpression = class(TNamedExpression)
+  TEnumerationDeclaration = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
     property Items: array of TEnumerationItem;
   end;
 
-  TFunctionExpression = class(TNamedExpression)
+  TFunctionDeclaration = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
     property &Type: TFunctionType;
   end;
 
-  TCustomStructureMember = class(TNamedExpression)
+  TCustomStructureMember = class(TNamedDeclaration)
   public
-    constructor Create(Owner: IExpressionOwner); override;
+    constructor Create(Owner: IDeclarationOwner); override;
 
     property Visibility: TVisibility;
     property IsStatic: Boolean;
   end;
 
-  TFieldExpression = class(TCustomStructureMember)
+  TFieldDeclaration = class(TCustomStructureMember)
   protected
     function GetAsCode: String; override;
   public
@@ -138,21 +150,28 @@ type
     property &Type: array of TCustomType;
   end;
 
-  TMethodExpression = class(TCustomStructureMember)
+  TConstructorDeclaration = class(TCustomStructureMember)
   protected
     function GetAsCode: String; override;
   public
     property &Type: TFunctionType;
   end;
 
-  TCallbackExpression = class(TCustomStructureMember)
+  TMethodDeclaration = class(TCustomStructureMember)
   protected
     function GetAsCode: String; override;
   public
     property &Type: TFunctionType;
   end;
 
-  TStructureExpression = class(TNamedExpression)
+  TCallbackDeclaration = class(TCustomStructureMember)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &Type: TFunctionType;
+  end;
+
+  TStructureDeclaration = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
@@ -161,40 +180,125 @@ type
     property Members: array of TCustomStructureMember;
   end;
 
-  TInterfaceExpression = class(TStructureExpression);
-  TClassExpression = class(TStructureExpression);
+  TInterfaceDeclaration = class(TStructureDeclaration);
+  TClassDeclaration = class(TStructureDeclaration);
 
-  TImportExpression = class(TNamedExpression)
+  TImportDeclaration = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
   end;
 
-  TVariableExpression = class(TNamedExpression)
+
+  TAccessibilityModifier = (
+    amPublic,
+    amPrivate,
+    amProtected
+  );
+
+  TTypeParameters = string;
+
+  TParameter = class
+    property AccessibilityModifier: TAccessibilityModifier;
+    property BindingIdentifier: String;
+    property &Type: TCustomType;
+    property IsOptional: Boolean;
+    property IsRest: Boolean;
+    property DefaultValue: string;
+  end;
+
+  TCallSignature = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &TypeParameters: TTypeParameters;
+    property ParameterList: array of TParameter;
+    property &Type: TCustomType;
+  end;
+
+
+
+  TAmbientBinding  = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property BindingIdentifier: String;
+    property &Type: TCustomType;
+  end;
+
+  TAmbientVariableDeclaration = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property IsConst: Boolean;
+    property AmbientBindingList: array of TAmbientBinding;
+  end;
+
+  TAmbientFunctionDeclaration = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property BindingIdentifier: String;
+    property CallSignature: TCallSignature;
+  end;
+
+  TAmbientClassDeclaration = class(TClassDeclaration)
+  end;
+
+
+
+
+  TAmbientModuleDeclaration = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property IdentifierPath: String;
+    property Variables: array of TAmbientVariableDeclaration;
+    property Functions: array of TAmbientFunctionDeclaration;
+    property Classes: array of TAmbientClassDeclaration;
+    property Modules: array of TAmbientModuleDeclaration;
+    property Interfaces: array of TInterfaceDeclaration;
+  end;
+
+
+
+
+
+
+
+
+  TVariableDeclaration = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
     property &Type: TCustomType;
   end;
 
-  TModuleExpression = class(TNamedExpression)
-  protected
-    function GetAsCode: String; override;
-  public
-    property Classes: array of TClassExpression;
-    property Interfaces: array of TInterfaceExpression;
-    property Variables: array of TVariableExpression;
+  TNamespaceDeclaration = class(TNamedDeclaration)
   end;
 
-  TDeclarationExpression = class(TNamedExpression)
+  TModuleDeclaration = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
-    property Classes: array of TClassExpression;
-    property Functions: array of TFunctionExpression;
-    property Interfaces: array of TInterfaceExpression;
-    property Modules: array of TModuleExpression;
-    property Variables: array of TVariableExpression;
+    property Classes: array of TClassDeclaration;
+    property Interfaces: array of TInterfaceDeclaration;
+    property Functions: array of TFunctionDeclaration;
+    property Exports: array of TExportDeclaration;
+    property Variables: array of TVariableDeclaration;
+    property Modules: array of TModuleDeclaration;
+  end;
+
+  TAmbientDeclaration = class(TNamedDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Classes: array of TClassDeclaration;
+    property Functions: array of TAmbientFunctionDeclaration;
+    property Enums: array of TEnumDeclaration;
+    property Modules: array of TAmbientModuleDeclaration;
+    property Namespaces: array of TNamespaceDeclaration;
+    property Variables: array of TAmbientVariableDeclaration;
   end;
 
 implementation
@@ -203,24 +307,24 @@ uses
   NodeJS.Core;
 
 
-{ TCustomExpression }
+{ TCustomDeclaration }
 
-constructor TCustomExpression.Create(Owner: IExpressionOwner);
+constructor TCustomDeclaration.Create(Owner: IDeclarationOwner);
 begin
   FOwner := Owner;
 end;
 
-class procedure TCustomExpression.BeginIndention;
+class procedure TCustomDeclaration.BeginIndention;
 begin
   Inc(IndentionLevel);
 end;
 
-class procedure TCustomExpression.EndIndention;
+class procedure TCustomDeclaration.EndIndention;
 begin
   Dec(IndentionLevel);
 end;
 
-class function TCustomExpression.GetIndentionString: String;
+class function TCustomDeclaration.GetIndentionString: String;
 begin
   Result := DupeString('  ', IndentionLevel);
 end;
@@ -292,7 +396,7 @@ end;
 
 { TNamedType }
 
-constructor TNamedType.Create(Owner: IExpressionOwner; AName: String);
+constructor TNamedType.Create(Owner: IDeclarationOwner; AName: String);
 begin
   inherited Create(Owner);
 
@@ -302,6 +406,14 @@ end;
 function TNamedType.GetName: String;
 begin
   Result := FName;
+end;
+
+
+{ TExportDeclaration }
+
+function TExportDeclaration.GetAsCode: String;
+begin
+  Result := '';
 end;
 
 
@@ -318,9 +430,9 @@ begin
 end;
 
 
-{ TDeclarationExpression }
+{ TAmbientDeclaration }
 
-function TDeclarationExpression.GetAsCode: String;
+function TAmbientDeclaration.GetAsCode: String;
 begin
   for var &Function in Functions do
     Result += &Function.AsCode;
@@ -337,15 +449,6 @@ begin
     EndIndention;
   end;
 
-  if Interfaces.Count > 0 then
-  begin
-    Result += 'type' + CRLF;
-    BeginIndention;
-    for var &Interface in Interfaces do
-      Result := Result + &Interface.AsCode;
-    EndIndention;
-  end;
-
   if Variables.Count > 0 then
   begin
     Result += 'var' + CRLF;
@@ -357,9 +460,9 @@ begin
 end;
 
 
-{ TDefinitionExpression }
+{ TDefinitionDeclaration }
 
-function TDefinitionExpression.GetAsCode: String;
+function TDefinitionDeclaration.GetAsCode: String;
 begin
 
 end;
@@ -373,25 +476,25 @@ begin
 end;
 
 
-{ TEnumerationExpression }
+{ TEnumerationDeclaration }
 
-function TEnumerationExpression.GetAsCode: String;
+function TEnumerationDeclaration.GetAsCode: String;
 begin
 
 end;
 
 
-{ TFunctionExpression }
+{ TFunctionDeclaration }
 
-function TFunctionExpression.GetAsCode: String;
+function TFunctionDeclaration.GetAsCode: String;
 begin
   Result := &Type.AsCode;
 end;
 
 
-{ TFieldExpression }
+{ TFieldDeclaration }
 
-function TFieldExpression.GetAsCode: String;
+function TFieldDeclaration.GetAsCode: String;
 begin
   Result := GetIndentionString + Name + ': ' + &Type[0].AsCode + ';';
   if Nullable then
@@ -402,9 +505,23 @@ begin
 end;
 
 
-{ TMethodExpression }
+{ TConstructorDeclaration }
 
-function TMethodExpression.GetAsCode: String;
+function TConstructorDeclaration.GetAsCode: String;
+begin
+  Result := GetIndentionString + 'constructor Create';
+
+  if Assigned(&Type) then
+    Result += &Type.AsCode;
+
+  // line break
+  Result += ';' + CRLF;
+end;
+
+
+{ TMethodDeclaration }
+
+function TMethodDeclaration.GetAsCode: String;
 begin
   Result := GetIndentionString + 'function ' + Name;
 
@@ -416,9 +533,9 @@ begin
 end;
 
 
-{ TCallbackExpression }
+{ TCallbackDeclaration }
 
-function TCallbackExpression.GetAsCode: String;
+function TCallbackDeclaration.GetAsCode: String;
 begin
   Result := GetIndentionString + 'callback ' + Name;
 
@@ -444,16 +561,16 @@ end;
 
 { TCustomStructureMember }
 
-constructor TCustomStructureMember.Create(Owner: IExpressionOwner);
+constructor TCustomStructureMember.Create(Owner: IDeclarationOwner);
 begin
   inherited Create(Owner);
   Visibility := vPublic;
 end;
 
 
-{ TStructureExpression }
+{ TStructureDeclaration }
 
-function TStructureExpression.GetAsCode: String;
+function TStructureDeclaration.GetAsCode: String;
 begin
   Result := GetIndentionString;
   Result += 'J' + Name + ' = class external ''' + Name + '''';
@@ -472,25 +589,25 @@ begin
 end;
 
 
-{ TImportExpression }
+{ TImportDeclaration }
 
-function TImportExpression.GetAsCode: String;
+function TImportDeclaration.GetAsCode: String;
 begin
 
 end;
 
 
-{ TVariableExpression }
+{ TVariableDeclaration }
 
-function TVariableExpression.GetAsCode: String;
+function TVariableDeclaration.GetAsCode: String;
 begin
 
 end;
 
 
-{ TModuleExpression }
+{ TModuleDeclaration }
 
-function TModuleExpression.GetAsCode: String;
+function TModuleDeclaration.GetAsCode: String;
 begin
 (*
   Result := 'unit ' + Name + ';' + CRLF + CRLF;
@@ -524,5 +641,54 @@ begin
     EndIndention;
   end;
 end;
+
+
+
+
+
+
+
+
+{ TCallSignature }
+
+function TCallSignature.GetAsCode: String;
+begin
+
+end;
+
+
+{ TAmbientBinding }
+
+function TAmbientBinding.GetAsCode: String;
+begin
+
+end;
+
+
+{ TAmbientVariableDeclaration }
+
+function TAmbientVariableDeclaration.GetAsCode: String;
+begin
+  Result := if IsConst then 'const ' else 'var ';
+  for var AmbientBinding in AmbientBindingList do
+    Result += AmbientBinding.AsCode;
+end;
+
+
+{ TAmbientFunctionDeclaration }
+
+function TAmbientFunctionDeclaration.GetAsCode: String;
+begin
+  //Result := &Type.AsCode;
+end;
+
+
+{ TAmbientFunctionDeclaration }
+
+function TAmbientModuleDeclaration.GetAsCode: String;
+begin
+  //Result := &Type.AsCode;
+end;
+
 
 end.
