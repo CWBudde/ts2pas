@@ -1,6 +1,6 @@
 uses
   NodeJS.Core, NodeJS.FS, ts2pas.Translator;
-
+                                          
 var FileSystem := fs;
 
 procedure ConvertFile(InputFile, OutputFile: String); overload;

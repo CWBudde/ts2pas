@@ -3,12 +3,13 @@ unit ts2pas.Translator;
 interface
 
 uses
-  TypeScript, ts2pas.Expressions;
+  TypeScript, ts2pas.Declarations;
 
 type
   TTranslator = class(IDeclarationOwner)
   private
     FScanner: JScanner;
+    FSourceFile: JSourceFile;
 
     FDeclarations: array of TAmbientDeclaration;
     FModules: array of TModuleDeclaration;
@@ -17,19 +18,18 @@ type
     function ReadAmbientDeclaration: TAmbientDeclaration;
     function ReadEnumerationItem: TEnumerationItem;
     function ReadEnumerationDeclaration: TEnumerationDeclaration;
-    function ReadObjectType: TObjectType;
     function ReadExportDeclaration: TExportDeclaration;
     function ReadCallbackInterface: TCallbackDeclaration;
     function ReadFieldDeclaration: TFieldDeclaration;
-    function ReadConstructorDeclaration: TConstructorDeclaration;
+    function ReadConstructorDeclaration: TConstructorType;
     function ReadMethodDeclaration: TMethodDeclaration;
     function ReadFunctionParameter: TFunctionParameter;
     function ReadFunctionType: TFunctionType;
     function ReadFunctionDeclaration: TFunctionDeclaration;
     function ReadImportDeclaration: TImportDeclaration;
-    function ReadInterfaceMember: TCustomStructureMember;
+    function ReadInterfaceMember: TCustomTypeMember;
     function ReadInterfaceDeclaration: TInterfaceDeclaration;
-    function ReadClassMember: TCustomStructureMember;
+    function ReadClassMember: TCustomTypeMember;
     function ReadClassDeclaration: TClassDeclaration;
     function ReadModuleDeclaration: TModuleDeclaration;
     function ReadIdentifierPath: String;
@@ -37,9 +37,13 @@ type
     function ReadVariableDeclaration: TVariableDeclaration;
 
 
+    function ReadTypeMember: TCustomTypeMember;
     function ReadParameter: TParameter;
     function ReadTypeAnnotation: TCustomType;
     function ReadCallSignature: TCallSignature;
+    function ReadObjectType: TObjectType;
+    function ReadConstructorType: TConstructorType;
+    function ReadConstructorSignature: TConstructorType;
 
     function ReadAmbientVariableDeclaration: TAmbientVariableDeclaration;
     function ReadAmbientBinding: TAmbientBinding;
@@ -281,18 +285,6 @@ begin
     Result.&Type := ReadType;
 end;
 
-function TTranslator.ReadObjectType: TObjectType;
-begin
-  // sanity check
-  AssumeToken(TSyntaxKind.OpenBraceToken);
-
-  // create an object type
-  Result := TObjectType.Create(Self as IDeclarationOwner);
-
-  // skip for now
-  while FScanner.Scan <> TSyntaxKind.CloseBraceToken do;
-end;
-
 function TTranslator.ReadExportDeclaration: TExportDeclaration;
 begin
   // sanity check
@@ -365,6 +357,9 @@ begin
     ReadToken(TSyntaxKind.CloseBracketToken, True);
     ReadToken;
   end;
+
+  if CurrentToken = TSyntaxKind.BarToken then
+    ReadType;
 end;
 
 function TTranslator.ReadCallbackInterface: TCallbackDeclaration;
@@ -392,9 +387,9 @@ begin
     TSyntaxKind.CommaToken]);
 end;
 
-function TTranslator.ReadConstructorDeclaration: TConstructorDeclaration;
+function TTranslator.ReadConstructorDeclaration: TConstructorType;
 begin
-  Result := TConstructorDeclaration.Create(Self as IDeclarationOwner);
+  Result := TConstructorType.Create(Self as IDeclarationOwner);
   Result.Type := ReadFunctionType;
 
   AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken]);
@@ -408,7 +403,7 @@ begin
   AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken]);
 end;
 
-function TTranslator.ReadClassMember: TCustomStructureMember;
+function TTranslator.ReadClassMember: TCustomTypeMember;
 begin
   // sanity check
   AssumeIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken,
@@ -507,15 +502,17 @@ begin
     if IsStatic then
       ReadIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken], True);
 
+(*
     var Member := ReadClassMember;
     Member.Visibility := Visibility;
     Member.IsStatic := IsStatic;
 
     Result.Members.Add(Member);
+*)
   end;
 end;
 
-function TTranslator.ReadInterfaceMember: TCustomStructureMember;
+function TTranslator.ReadInterfaceMember: TCustomTypeMember;
 begin
   // sanity check
   AssumeIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken]);
@@ -527,7 +524,8 @@ begin
     // create a interface member
     var MemberName := CurrentTokenText;
 
-    ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken, TSyntaxKind.OpenParenToken], True);
+    ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken,
+      TSyntaxKind.OpenParenToken], True);
 
     // check if type is nullable
     var Nullable := CurrentToken = TSyntaxKind.QuestionToken;
@@ -553,7 +551,7 @@ end;
 
 function TTranslator.ReadInterfaceDeclaration: TInterfaceDeclaration;
 begin
-  // sanity check
+  // assume we're at the interface keyword
   AssumeToken(TSyntaxKind.InterfaceKeyword);
 
   // create a interface
@@ -565,32 +563,29 @@ begin
 
   Console.Log('Read interface: ' + Result.Name);
 
-  ReadToken;
-  while CurrentToken in [TSyntaxKind.ExtendsKeyword, TSyntaxKind.ImplementsKeyword] do
+  ReadIdentifier([TSyntaxKind.ExtendsKeyword, TSyntaxKind.OpenBraceToken]);
+  if FScanner.IsIdentifier then
   begin
-    var List := if CurrentToken = TSyntaxKind.ExtendsKeyword then
-      Result.Extends else Result.Implements;
+    // Eventually read type parameters here
+  end;
 
+  // read class or interface type list
+  while CurrentToken in [TSyntaxKind.ExtendsKeyword] do
+  begin
     ReadIdentifier(True);
-    List.Add(ReadIdentifierPath);
+    Result.Extends.Add(ReadIdentifierPath);
     while CurrentToken = TSyntaxKind.CommaToken do
     begin
       ReadIdentifier(True);
-      List.Add(ReadIdentifierPath);
+      Result.Extends.Add(ReadIdentifierPath);
     end;
   end;
 
   // ensure the current token is an open brace
   AssumeToken(TSyntaxKind.OpenBraceToken);
 
-  while ReadIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken]) do
-  begin
-    Result.Members.Add(ReadInterfaceMember);
-
-    // check if we're already at the close brace
-    if CurrentToken = TSyntaxKind.CloseBraceToken then
-      Break;
-  end;
+  // read object type
+  Result.&Type := ReadObjectType;
 
   // ensure the current token is a close brace
   AssumeToken(TSyntaxKind.CloseBraceToken);
@@ -693,6 +688,137 @@ end;
 
 
 
+function TTranslator.ReadConstructorType: TConstructorType;
+begin
+  // assume we're at a new keyword
+  AssumeToken(TSyntaxKind.NewKeyword);
+
+  // create constructor type
+  Result := TConstructorType.Create(Self as IDeclarationOwner);
+
+  if ReadIdentifier then
+  begin
+    // read type parameters
+    ReadToken(TSyntaxKind.OpenParenToken);
+  end;
+
+  AssumeToken(TSyntaxKind.OpenParenToken);
+
+  // ReadParameterList
+  while CurrentToken <> TSyntaxKind.CloseParenToken do
+  begin
+    Result.ParameterList.Add(ReadParameter);
+
+    if CurrentToken = TSyntaxKind.CommaToken then
+      ReadIdentifier([TSyntaxKind.DotDotDotToken]);
+  end;
+
+  // a colon is expected
+  ReadToken(TSyntaxKind.EqualsGreaterThanToken, True);
+
+  Result.&Type := ReadType;
+
+  AssumeToken(TSyntaxKind.CloseParenToken);
+end;
+
+function TTranslator.ReadConstructorSignature: TConstructorType;
+begin
+  // assume we're at a new keyword
+  AssumeToken(TSyntaxKind.NewKeyword);
+
+  // create constructor type
+  Result := TConstructorType.Create(Self as IDeclarationOwner);
+
+  if ReadIdentifier then
+  begin
+    // read type parameters
+    ReadToken(TSyntaxKind.OpenParenToken);
+  end;
+
+  AssumeToken(TSyntaxKind.OpenParenToken);
+
+  // ReadParameterList
+  while CurrentToken <> TSyntaxKind.CloseParenToken do
+  begin
+    Result.ParameterList.Add(ReadParameter);
+
+    if CurrentToken = TSyntaxKind.CommaToken then
+      ReadIdentifier([TSyntaxKind.DotDotDotToken]);
+  end;
+
+  AssumeToken(TSyntaxKind.CloseParenToken);
+
+  // a colon is expected
+  ReadToken(TSyntaxKind.ColonToken, True);
+
+  Result.&Type := ReadTypeAnnotation;
+end;
+
+function TTranslator.ReadTypeMember: TCustomTypeMember;
+begin
+  AssumeIdentifier([TSyntaxKind.StringLiteral, TSyntaxKind.NumericLiteral,
+    TSyntaxKind.PrivateKeyword, TSyntaxKind.NewKeyword,
+    TSyntaxKind.OpenParenToken, TSyntaxKind.OpenBracketToken]);
+
+  if CurrentToken = TSyntaxKind.NewKeyword then
+    Exit(ReadConstructorSignature);
+
+  if CurrentToken = TSyntaxKind.OpenParenToken then
+    Exit(ReadCallbackInterface);
+
+  if FScanner.IsIdentifier or (FScanner.getToken in [
+    TSyntaxKind.StringLiteral, TSyntaxKind.NumericLiteral]) then
+  begin
+    var MemberName := CurrentTokenText;
+
+    ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken,
+      TSyntaxKind.OpenParenToken], True);
+
+    // check if type is nullable
+    var Nullable := CurrentToken = TSyntaxKind.QuestionToken;
+    if Nullable then
+      ReadToken(TSyntaxKind.ColonToken, True);
+
+    case CurrentToken of
+      TSyntaxKind.ColonToken:
+        begin
+          Result := ReadFieldDeclaration;
+          TFieldDeclaration(Result).Nullable := Nullable;
+        end;
+      TSyntaxKind.OpenParenToken:
+        Result := ReadMethodDeclaration;
+    end;
+
+    Result.Name := MemberName;
+  end;
+
+end;
+
+function TTranslator.ReadObjectType: TObjectType;
+begin
+  // assume we're at an open brace
+  AssumeToken(TSyntaxKind.OpenBraceToken);
+
+  // create an object type
+  Result := TObjectType.Create(Self as IDeclarationOwner);
+
+  ReadIdentifier([TSyntaxKind.StringLiteral, TSyntaxKind.NumericLiteral,
+    TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken,
+    TSyntaxKind.OpenBracketToken, TSyntaxKind.CloseBraceToken], True);
+
+  while CurrentToken <> TSyntaxKind.CloseBraceToken do
+  begin
+    Result.Members.Add(ReadTypeMember);
+
+    if CurrentToken in [TSyntaxKind.SemicolonToken, TSyntaxKind.CommaToken] then
+      ReadIdentifier([TSyntaxKind.StringLiteral, TSyntaxKind.NumericLiteral,
+        TSyntaxKind.NewKeyword, TSyntaxKind.OpenBracketToken,
+        TSyntaxKind.CloseBraceToken], True);
+  end;
+
+  // assume we're at a close brace
+  AssumeToken(TSyntaxKind.CloseBraceToken);
+end;
 
 function TTranslator.ReadParameter: TParameter;
 begin
@@ -1075,9 +1201,11 @@ end;
 
 procedure TTranslator.HandleScanError;
 begin
+  var LineChar := TypeScriptExport.getLineAndCharacterOfPosition(
+    FSourceFile, FScanner.getTokenPos);
 
-  raise Exception.Create(Format('Unknown token "%s" in this context. At pos %d',
-    [CurrentTokenText, FScanner.getTokenPos]));
+  raise Exception.Create(Format('Unknown token "%s" in this context (%d:%d)',
+    [CurrentTokenText, LineChar.line + 1, LineChar.character + 1]));
 end;
 
 function TTranslator.BuildPascalHeader: String;
@@ -1099,6 +1227,9 @@ function TTranslator.Translate(Source: String): String;
 begin
   FScanner := TypeScriptExport.createScanner(TScriptTarget.ES3, True,
     TLanguageVariant.Standard, Source);
+
+  FSourceFile := TypeScriptExport.createSourceFile('main', Source,
+    TScriptTarget.ES3);
 
   try
     ReadDefinition;

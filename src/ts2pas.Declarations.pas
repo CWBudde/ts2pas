@@ -1,4 +1,4 @@
-unit ts2pas.Expressions;
+unit ts2pas.Declarations;
 
 interface
 
@@ -7,6 +7,8 @@ const
 
 type
   TVisibility = (vPublic, vProtected, vPrivate);
+
+  TTypeParameters = string;
 
   IDeclarationOwner = interface
   end;
@@ -33,30 +35,34 @@ type
   end;
 
   TCustomType = class(TCustomDeclaration)
+  public
+    property IsArray: Boolean;
+  end;
+
+  TCustomNamedType = class(TCustomType)
   protected
     function GetName: String; virtual; abstract;
     function GetAsCode: String; override;
   public
     property Name: String read GetName;
-    property IsArray: Boolean;
   end;
 
-  TVariantType = class(TCustomType)
+  TVariantType = class(TCustomNamedType)
   protected
     function GetName: String; override;
   end;
 
-  TFloatType = class(TCustomType)
+  TFloatType = class(TCustomNamedType)
   protected
     function GetName: String; override;
   end;
 
-  TStringType = class(TCustomType)
+  TStringType = class(TCustomNamedType)
   protected
     function GetName: String; override;
   end;
 
-  TBooleanType = class(TCustomType)
+  TBooleanType = class(TCustomNamedType)
   protected
     function GetName: String; override;
   end;
@@ -72,7 +78,7 @@ type
     property Nullable: Boolean;
   end;
 
-  TFunctionType = class(TCustomType)
+  TFunctionType = class(TCustomNamedType)
   protected
     function GetName: String; override;
     function GetAsCode: String; override;
@@ -82,13 +88,7 @@ type
     property Parameters: array of TFunctionParameter;
   end;
 
-  TObjectType = class(TCustomType)
-  protected
-    function GetName: String; override;
-    function GetAsCode: String; override;
-  end;
-
-  TNamedType = class(TCustomType)
+  TNamedType = class(TCustomNamedType)
   private
     FName: String;
   protected
@@ -134,7 +134,7 @@ type
     property &Type: TFunctionType;
   end;
 
-  TCustomStructureMember = class(TNamedDeclaration)
+  TCustomTypeMember = class(TNamedDeclaration)
   public
     constructor Create(Owner: IDeclarationOwner); override;
 
@@ -142,7 +142,14 @@ type
     property IsStatic: Boolean;
   end;
 
-  TFieldDeclaration = class(TCustomStructureMember)
+  TObjectType = class(TCustomType)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Members: array of TCustomTypeMember;
+  end;
+
+  TFieldDeclaration = class(TCustomTypeMember)
   protected
     function GetAsCode: String; override;
   public
@@ -150,53 +157,11 @@ type
     property &Type: array of TCustomType;
   end;
 
-  TConstructorDeclaration = class(TCustomStructureMember)
-  protected
-    function GetAsCode: String; override;
-  public
-    property &Type: TFunctionType;
-  end;
-
-  TMethodDeclaration = class(TCustomStructureMember)
-  protected
-    function GetAsCode: String; override;
-  public
-    property &Type: TFunctionType;
-  end;
-
-  TCallbackDeclaration = class(TCustomStructureMember)
-  protected
-    function GetAsCode: String; override;
-  public
-    property &Type: TFunctionType;
-  end;
-
-  TStructureDeclaration = class(TNamedDeclaration)
-  protected
-    function GetAsCode: String; override;
-  public
-    property Extends: array of String;
-    property Implements: array of String;
-    property Members: array of TCustomStructureMember;
-  end;
-
-  TInterfaceDeclaration = class(TStructureDeclaration);
-  TClassDeclaration = class(TStructureDeclaration);
-
-  TImportDeclaration = class(TNamedDeclaration)
-  protected
-    function GetAsCode: String; override;
-  public
-  end;
-
-
   TAccessibilityModifier = (
     amPublic,
     amPrivate,
     amProtected
   );
-
-  TTypeParameters = string;
 
   TParameter = class
     property AccessibilityModifier: TAccessibilityModifier;
@@ -206,6 +171,53 @@ type
     property IsRest: Boolean;
     property DefaultValue: string;
   end;
+
+  TConstructorType = class(TCustomTypeMember)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &TypeParameters: TTypeParameters;
+    property ParameterList: array of TParameter;
+    property &Type: TCustomType;
+  end;
+
+  TMethodDeclaration = class(TCustomTypeMember)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &Type: TFunctionType;
+  end;
+
+  TCallbackDeclaration = class(TCustomTypeMember)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &Type: TFunctionType;
+  end;
+
+  TInterfaceDeclaration = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Name: String;
+    property Extends: array of String;
+    property &Type: TObjectType;
+    property Members: array of TCustomTypeMember;
+  end;
+
+  TClassDeclaration = class(TInterfaceDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Implements: array of String;
+  end;
+
+  TImportDeclaration = class(TNamedDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+  end;
+
 
   TCallSignature = class(TCustomDeclaration)
   protected
@@ -330,9 +342,9 @@ begin
 end;
 
 
-{ TCustomType }
+{ TCustomNamedType }
 
-function TCustomType.GetAsCode: String;
+function TCustomNamedType.GetAsCode: String;
 begin
   Result := Name;
   if isArray then
@@ -417,19 +429,6 @@ begin
 end;
 
 
-{ TObjectType }
-
-function TObjectType.GetName: String;
-begin
-  Result := 'record';
-end;
-
-function TObjectType.GetAsCode: String;
-begin
-  Result := '{ object definition placeholder }';
-end;
-
-
 { TAmbientDeclaration }
 
 function TAmbientDeclaration.GetAsCode: String;
@@ -505,9 +504,9 @@ begin
 end;
 
 
-{ TConstructorDeclaration }
+{ TConstructorType }
 
-function TConstructorDeclaration.GetAsCode: String;
+function TConstructorType.GetAsCode: String;
 begin
   Result := GetIndentionString + 'constructor Create';
 
@@ -559,25 +558,25 @@ begin
 end;
 
 
-{ TCustomStructureMember }
+{ TCustomTypeMember }
 
-constructor TCustomStructureMember.Create(Owner: IDeclarationOwner);
+constructor TCustomTypeMember.Create(Owner: IDeclarationOwner);
 begin
   inherited Create(Owner);
   Visibility := vPublic;
 end;
 
 
-{ TStructureDeclaration }
+{ TObjectType }
 
-function TStructureDeclaration.GetAsCode: String;
+function TObjectType.GetAsCode: String;
 begin
-  Result := GetIndentionString;
-  Result += 'J' + Name + ' = class external ''' + Name + '''';
+(*
+  Result +=
   for var Extend in Extends do
     Result += ' // extends ' + Extend;
+*)
 
-  Result += CRLF;
   BeginIndention;
   for var Member in Members do
     Result += Member.AsCode;
@@ -690,5 +689,19 @@ begin
   //Result := &Type.AsCode;
 end;
 
+
+{ TClassDeclaration }
+
+function TClassDeclaration.GetAsCode: String;
+begin
+
+end;
+
+{ TInterfaceDeclaration }
+
+function TInterfaceDeclaration.GetAsCode: String;
+begin
+
+end;
 
 end.
