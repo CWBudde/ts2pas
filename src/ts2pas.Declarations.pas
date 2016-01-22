@@ -34,9 +34,20 @@ type
     property Name: String;
   end;
 
-  TCustomType = class(TCustomDeclaration)
+  TCustomType = class(TCustomDeclaration);
+
+  TArrayType = class(TCustomType)
+  protected
+    function GetAsCode: String; override;
   public
-    property IsArray: Boolean;
+    property &Type: TCustomType;
+  end;
+
+  TUnionType = class(TCustomType)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &Types: array of TCustomType;
   end;
 
   TCustomNamedType = class(TCustomType)
@@ -45,6 +56,13 @@ type
     function GetAsCode: String; override;
   public
     property Name: String read GetName;
+  end;
+
+  TTypeOfType = class(TCustomNamedType)
+  protected
+    function GetName: String; override;
+  public
+    property &Type: TCustomType;
   end;
 
   TVariantType = class(TCustomNamedType)
@@ -88,6 +106,14 @@ type
     property Parameters: array of TFunctionParameter;
   end;
 
+  TTypeArgument = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Name: String;
+    property &Type: TCustomType;
+  end;
+
   TNamedType = class(TCustomNamedType)
   private
     FName: String;
@@ -96,6 +122,7 @@ type
   public
     constructor Create(Owner: IDeclarationOwner; AName: String); reintroduce;
     property Name: String read GetName;
+    property Arguments: array of TTypeArgument;
   end;
 
   TExportDeclaration = class(TNamedDeclaration)
@@ -154,7 +181,7 @@ type
     function GetAsCode: String; override;
   public
     property Nullable: Boolean;
-    property &Type: array of TCustomType;
+    property &Type: TCustomType;
   end;
 
   TAccessibilityModifier = (
@@ -172,12 +199,28 @@ type
     property DefaultValue: string;
   end;
 
-  TConstructorType = class(TCustomTypeMember)
+  TTypeParameter = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Name: String;
+    property ExtendsType: TCustomType;
+  end;
+
+  TConstructorDeclaration = class(TCustomTypeMember)
   protected
     function GetAsCode: String; override;
   public
     property &TypeParameters: TTypeParameters;
     property ParameterList: array of TParameter;
+    property &Type: TCustomType;
+  end;
+
+  TIndexDeclaration = class(TCustomTypeMember)
+  protected
+    function GetAsCode: String; override;
+  public
+    property IsStringIndex: Boolean;
     property &Type: TCustomType;
   end;
 
@@ -342,13 +385,39 @@ begin
 end;
 
 
+{ TArrayType }
+
+function TArrayType.GetAsCode: String;
+begin
+  Result := 'array of ' + &Type.AsCode;
+end;
+
+
+{ TUnionType }
+
+function TUnionType.GetAsCode: String;
+begin
+  Result := 'Variant {';
+  for var SubType in Types do
+  begin
+    Result += SubType.AsCode;
+  end;
+end;
+
+
 { TCustomNamedType }
 
 function TCustomNamedType.GetAsCode: String;
 begin
   Result := Name;
-  if isArray then
-    Result := 'array of ' + Result;
+end;
+
+
+{ TTypeOfType }
+
+function TTypeOfType.GetName: String;
+begin
+  Result := 'type of';
 end;
 
 
@@ -495,7 +564,7 @@ end;
 
 function TFieldDeclaration.GetAsCode: String;
 begin
-  Result := GetIndentionString + Name + ': ' + &Type[0].AsCode + ';';
+  Result := GetIndentionString + Name + ': ' + &Type.AsCode + ';';
   if Nullable then
     Result += ' // nullable';
 
@@ -504,9 +573,9 @@ begin
 end;
 
 
-{ TConstructorType }
+{ TConstructorDeclaration }
 
-function TConstructorType.GetAsCode: String;
+function TConstructorDeclaration.GetAsCode: String;
 begin
   Result := GetIndentionString + 'constructor Create';
 
@@ -515,6 +584,14 @@ begin
 
   // line break
   Result += ';' + CRLF;
+end;
+
+
+{ TIndexDeclaration }
+
+function TIndexDeclaration.GetAsCode: String;
+begin
+
 end;
 
 
@@ -700,6 +777,20 @@ end;
 { TInterfaceDeclaration }
 
 function TInterfaceDeclaration.GetAsCode: String;
+begin
+
+end;
+
+{ TTypeParameter }
+
+function TTypeParameter.GetAsCode: String;
+begin
+
+end;
+
+{ TTypeArgument }
+
+function TTypeArgument.GetAsCode: String;
 begin
 
 end;
