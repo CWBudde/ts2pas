@@ -1,0 +1,21 @@
+uses
+  ts2pas.Main;
+
+(*
+ConvertFile('TypeScriptDefs\abs');
+ConvertFile('TypeScriptDefs\absolute');
+ConvertFile('TypeScriptDefs\accounting');
+ConvertFile('TypeScriptDefs\acc-wizard');
+ConvertFile('TypeScriptDefs\AmCharts');
+ConvertFile('TypeScriptDefs\amplifyjs');
+(*
+ConvertFile('TypeScriptDefs\amazon-product-api');
+*)
+ConvertFile('TypeScriptDefs\dijit');
+*)
+//ConvertFile('TypeScriptDefs\ExtJS');
+//ConvertFile('TypeScriptDefs\node');
+//ConvertFile('TypeScriptDefs\flot');
+//ConvertFile('TypeScriptDefs\box2dweb');
+//ConvertFile('TypeScriptDefs\angular');
+//ConvertFile('TypeScriptDefs\typescript');

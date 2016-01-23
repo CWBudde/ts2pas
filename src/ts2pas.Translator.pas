@@ -341,7 +341,7 @@ begin
       end;
     TSyntaxKind.StringLiteral:
       begin
-        Result := TNamedType.Create(Self as IDeclarationOwner, CurrentTokenText);
+        Result := TNamedType.Create(Self as IDeclarationOwner, FScanner.getTokenValue);
         ReadToken;
       end;
     TSyntaxKind.AnyKeyword:
@@ -888,7 +888,8 @@ begin
     TSyntaxKind.ProtectedKeyword, TSyntaxKind.DotDotDotToken]);
 
   // create parameter
-  Result := TParameter.Create;
+  Result := TParameter.Create(Self as IDeclarationOwner);
+  Result.Name := CurrentTokenText;
 
   Result.IsRest := CurrentToken = TSyntaxKind.DotDotDotToken;
   if Result.IsRest then
@@ -896,7 +897,7 @@ begin
     // handle rest parameter
     ReadIdentifier(True);
 
-    Result.BindingIdentifier := CurrentTokenText;
+    Result.Name := CurrentTokenText;
 
     // the next token must be a colon
     if ReadToken(TSyntaxKind.ColonToken) then
@@ -1120,7 +1121,7 @@ begin
   ReadIdentifier(True);
 
   Result := TAmbientBinding.Create(Self as IDeclarationOwner);
-  Result.BindingIdentifier := CurrentTokenText;
+  Result.Name := CurrentTokenText;
 
   // eventually read type
   if ReadToken(TSyntaxKind.ColonToken) then
@@ -1141,7 +1142,7 @@ begin
 
   // read function name
   ReadIdentifier(True);
-  Result.BindingIdentifier := CurrentTokenText;
+  Result.Name := CurrentTokenText;
 
   // now read
   Result.CallSignature := ReadCallSignature;
@@ -1162,7 +1163,7 @@ begin
   else
   begin
     // create a interface member
-    var MemberName := CurrentTokenText;
+    var MemberName := FScanner.getTokenValue;
 
     ReadToken([TSyntaxKind.LessThanToken, TSyntaxKind.QuestionToken,
       TSyntaxKind.ColonToken, TSyntaxKind.OpenParenToken], True);
@@ -1310,7 +1311,7 @@ begin
   ReadIdentifier([TSyntaxKind.StringLiteral], True);
   Result.IdentifierPath := ReadIdentifierPath;
 
-  {$IFDEF DEBUG} Console.Log('Read module: ' + Result.IdentifierPath); {$ENDIF}
+  {$IFDEF DEBUG} Console.Log('Read ambient module: ' + Result.IdentifierPath); {$ENDIF}
 
   // ensure that the next token is an open brace
   AssumeToken(TSyntaxKind.OpenBraceToken);
@@ -1421,14 +1422,14 @@ begin
   Result := 'unit ' + Name + ';' + CRLF + CRLF;
   Result += 'interface' + CRLF + CRLF;
 
-  for var Declaration in FDeclarations do
-    Result := Result + Declaration.AsCode;
-
   for var Module in FModules do
     Result := Result + Module.AsCode;
 
   for var &Interface in FInterfaces do
     Result := Result + &Interface.AsCode;
+
+  for var Declaration in FDeclarations do
+    Result := Result + Declaration.AsCode;
 end;
 
 function TTranslator.Translate(Source: String): String;

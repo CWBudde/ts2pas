@@ -2,7 +2,7 @@
   <Project version="2" subversion="0">
     <Name>ts2pas</Name>
     <Created>T00:00:00.000</Created>
-    <Modified>2016-01-23T01:45:58.596</Modified>
+    <Modified>2016-01-23T03:22:14.712</Modified>
     <Author>Christian-W. Budde</Author>
     <Description>TypeScript to Object Pascal translator</Description>
     <Keywords>TypeScript, Object Pascal</Keywords>
@@ -36,7 +36,7 @@
         <ProjectSearchPath></ProjectSearchPath>
       </Compiler>
       <Codegen>
-        <Obfuscation>0</Obfuscation>
+        <Obfuscation>1</Obfuscation>
         <RangeChecking>0</RangeChecking>
         <InstanceChecking>0</InstanceChecking>
         <ConditionChecking>0</ConditionChecking>
@@ -47,7 +47,7 @@
         <EmitRTTI>0</EmitRTTI>
         <Devirtualize>1</Devirtualize>
         <MainBody>0</MainBody>
-        <CodePacking>0</CodePacking>
+        <CodePacking>1</CodePacking>
         <SmartLinking>0</SmartLinking>
         <Verbosity>0</Verbosity>
       </Codegen>
@@ -90,7 +90,7 @@
       <File type="main">
         <Name>ts2pas</Name>
         <Created>2016-01-10T13:59:49.570Z</Created>
-        <Modified>2016-01-23T01:45:58.594</Modified>
+        <Modified>2016-01-23T01:51:35.960</Modified>
         <Filename>ts2pas.spr</Filename>
       </File>
       <File type="unit">
@@ -102,7 +102,7 @@
       <File type="unit">
         <Name>ts2pas.Declarations</Name>
         <Created>2016-01-11T22:20:28.821Z</Created>
-        <Modified>2016-01-22T23:27:17.488</Modified>
+        <Modified>2016-01-23T01:49:15.569</Modified>
         <Filename>ts2pas.Declarations.pas</Filename>
       </File>
       <File type="unit">
@@ -115,10 +115,10 @@
     <Target>Node.js</Target>
     <Generator>Node.js Project</Generator>
     <Statistics>
-      <BackgroundCompilations>12318</BackgroundCompilations>
-      <EditTime>05:53:41.320</EditTime>
-      <CompileTime>00:15:50.224</CompileTime>
-      <TotalTime>02:01:54.675</TotalTime>
+      <BackgroundCompilations>12355</BackgroundCompilations>
+      <EditTime>05:54:10.749</EditTime>
+      <CompileTime>00:16:00.419</CompileTime>
+      <TotalTime>02:12:20.141</TotalTime>
       <DesigningTime>00:00:00.000</DesigningTime>
       <RunningTime>00:00:00.000</RunningTime>
     </Statistics>
