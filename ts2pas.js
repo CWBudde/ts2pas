@@ -247,183 +247,494 @@ var TTranslator = {
    $ClassName:"TTranslator",$Parent:TObject
    ,$Init:function ($) {
       TObject.$Init($);
+      $.NeedsSemicolon = false;
       $.Name = "";
       $.FDeclarations = [];
       $.FInterfaces = [];
       $.FModules = [];
-      $.FScanner = null;
+      $.FScanner = $.FSourceFile = null;
    }
-   ,AssumeIdentifier:function(Self) {
-      if (!Self.FScanner.isIdentifier()) {
-         TTranslator.HandleScanError(Self);
+   ,a$2:function(Self) {
+      return Self.FScanner.getTokenText();
+   }
+   ,a$1:function(Self) {
+      return Self.FScanner.getToken();
+   }
+   ,AssumeIdentifier:function(Self, AdditionalToken) {
+      if (!(Self.FScanner.isIdentifier()||AdditionalToken.indexOf(TTranslator.a$1(Self))>=0)) {
+         TTranslator.HandleScanError(Self,0);
       }
    }
    ,AssumeToken$1:function(Self, Tokens) {
-      if (!(Tokens.indexOf(Self.FScanner.getToken())>=0)) {
-         TTranslator.HandleScanError(Self);
+      if (!(Tokens.indexOf(TTranslator.a$1(Self))>=0)) {
+         TTranslator.HandleScanError(Self,0);
       }
    }
    ,AssumeToken:function(Self, Token) {
-      if (Self.FScanner.getToken()!=Token) {
-         TTranslator.HandleScanError(Self);
+      if (TTranslator.a$1(Self)!=Token) {
+         TTranslator.HandleScanError(Self,Token);
       }
    }
    ,BuildPascalHeader:function(Self) {
       var Result = "";
-      var a$78 = 0;
+      var a$125 = 0;
       var Declaration = null,
-         a$79 = 0;
+         a$126 = 0;
       var Module$1 = null,
-         a$80 = 0;
+         a$127 = 0;
       var Interface = null;
-      var a$81 = [],
-          a$82 = [],
-          a$83 = [];
+      var a$128 = [],
+          a$129 = [],
+          a$130 = [];
       Result = "unit "+Self.Name+";"+"\r\n"+"\r\n";
       Result+="interface"+"\r\n"+"\r\n";
-      a$83 = Self.FDeclarations;
+      a$130 = Self.FDeclarations;
       var $temp1;
-      for(a$78=0,$temp1=a$83.length;a$78<$temp1;a$78++) {
-         Declaration = a$83[a$78];
-         Result = Result+TCustomExpression.GetAsCode$(Declaration);
+      for(a$125=0,$temp1=a$130.length;a$125<$temp1;a$125++) {
+         Declaration = a$130[a$125];
+         Result = Result+TCustomDeclaration.GetAsCode$(Declaration);
       }
-      a$82 = Self.FModules;
+      a$129 = Self.FModules;
       var $temp2;
-      for(a$79=0,$temp2=a$82.length;a$79<$temp2;a$79++) {
-         Module$1 = a$82[a$79];
-         Result = Result+TCustomExpression.GetAsCode$(Module$1);
+      for(a$126=0,$temp2=a$129.length;a$126<$temp2;a$126++) {
+         Module$1 = a$129[a$126];
+         Result = Result+TCustomDeclaration.GetAsCode$(Module$1);
       }
-      a$81 = Self.FInterfaces;
+      a$128 = Self.FInterfaces;
       var $temp3;
-      for(a$80=0,$temp3=a$81.length;a$80<$temp3;a$80++) {
-         Interface = a$81[a$80];
-         Result = Result+TCustomExpression.GetAsCode$(Interface);
+      for(a$127=0,$temp3=a$128.length;a$127<$temp3;a$127++) {
+         Interface = a$128[a$127];
+         Result = Result+TCustomDeclaration.GetAsCode$(Interface);
       }
       return Result
    }
    ,Create$3:function(Self) {
+      Self.NeedsSemicolon = false;
       return Self
    }
-   ,HandleScanError:function(Self) {
-      throw Exception.Create($New(Exception),("Unknown token ("+Self.FScanner.getTokenText().toString()+") in this context. At pos "+Self.FScanner.getTokenPos().toString()));
+   ,HandleScanError:function(Self, Expected) {
+      var LineChar = null,
+         Text$1 = "";
+      LineChar = TypeScriptExport.getLineAndCharacterOfPosition(Self.FSourceFile,Self.FScanner.getTokenPos());
+      Text$1 = ("Unknown token \""+TTranslator.a$2(Self).toString()+"\" in this context ("+(LineChar.line+1).toString()+":"+(LineChar.character+1).toString()+")");
+      if (Expected>0) {
+         Text$1+=("; Expected ("+Expected.toString()+")");
+      }
+      console.trace("");
+      throw Exception.Create($New(Exception),Text$1);
    }
-   ,ReadClassExpression:function(Self) {
+   ,ReadAmbientBinding:function(Self) {
       var Result = null;
-      var List = [],
+      TTranslator.ReadIdentifier(Self,true);
+      Result = TCustomDeclaration.Create$4$($New(TAmbientBinding),$AsIntf(Self,"IDeclarationOwner"));
+      Result.BindingIdentifier = TTranslator.a$2(Self);
+      if (TTranslator.ReadToken$1(Self,54,false)) {
+         Result.Type = TTranslator.ReadTypeAnnotation(Self);
+      }
+      if (Self.NeedsSemicolon) {
+         TTranslator.AssumeToken$1(Self,[23, 24].slice());
+      }
+      return Result
+   }
+   ,ReadAmbientClassDeclaration:function(Self) {
+      var Result = null;
+      var ClassElementTokens = [],
          Visibility$1 = 0,
          IsStatic$1 = false,
          Member = null;
       TTranslator.AssumeToken(Self,73);
-      Result = TCustomExpression.Create$4$($New(TClassExpression),$AsIntf(Self,"IExpressionOwner"));
+      Result = TCustomDeclaration.Create$4$($New(TAmbientClassDeclaration),$AsIntf(Self,"IDeclarationOwner"));
       TTranslator.ReadIdentifier(Self,true);
-      Result.Name = Self.FScanner.getTokenText();
-      console.log("Read class: "+Result.Name);
-      TTranslator.ReadToken(Self);
-      while (([83,106].indexOf(Self.FScanner.getToken())>=0)) {
-         List = (Self.FScanner.getToken()==83)?Result.Extends:Result.Implements;
+      Result.Name = TTranslator.a$2(Self);
+      TTranslator.ReadToken$2(Self,[83, 106, 15].slice(),true);
+      if (TTranslator.a$1(Self)==83) {
          TTranslator.ReadIdentifier(Self,true);
-         List.push(TTranslator.ReadScopedName(Self));
-         while (Self.FScanner.getToken()==24) {
+         Result.Extends.push(TTranslator.ReadTypeReference(Self));
+      }
+      if (TTranslator.a$1(Self)==106) {
+         TTranslator.ReadIdentifier(Self,true);
+         Result.Implements.push(TTranslator.ReadIdentifierPath(Self));
+         while (TTranslator.a$1(Self)==24) {
             TTranslator.ReadIdentifier(Self,true);
-            List.push(TTranslator.ReadScopedName(Self));
+            Result.Implements.push(TTranslator.ReadIdentifierPath(Self));
          }
       }
       TTranslator.AssumeToken(Self,15);
-      while (TTranslator.ReadIdentifier(Self,false)) {
+      ClassElementTokens.push(92, 9, 82, 16, 23);
+      TTranslator.ReadIdentifier$1(Self,ClassElementTokens,false);
+      while (TTranslator.a$1(Self)!=16) {
          Visibility$1 = 0;
-         switch (Self.FScanner.getToken()) {
+         switch (TTranslator.a$1(Self)) {
             case 112 :
                Visibility$1 = 0;
-               TTranslator.ReadIdentifier(Self,true);
+               TTranslator.ReadIdentifier$1(Self,[92].slice(),true);
                break;
             case 111 :
                Visibility$1 = 1;
-               TTranslator.ReadIdentifier(Self,true);
+               TTranslator.ReadIdentifier$1(Self,[92].slice(),true);
                break;
             case 110 :
                Visibility$1 = 2;
-               TTranslator.ReadIdentifier(Self,true);
+               TTranslator.ReadIdentifier$1(Self,[92].slice(),true);
                break;
          }
-         IsStatic$1 = Self.FScanner.getToken()==113;
+         IsStatic$1 = TTranslator.a$1(Self)==113;
          if (IsStatic$1) {
-            TTranslator.ReadIdentifier(Self,true);
+            TTranslator.ReadIdentifier$1(Self,[92, 17].slice(),true);
          }
-         Member = TTranslator.ReadStructureMember(Self);
+         Member = TTranslator.ReadAmbientClassMember(Self);
          Member.Visibility = Visibility$1;
          Member.IsStatic = IsStatic$1;
          Result.Members.push(Member);
+         if (TTranslator.a$1(Self)==23) {
+            TTranslator.ReadIdentifier$1(Self,ClassElementTokens,false);
+         }
+      }
+      TTranslator.AssumeToken(Self,16);
+      return Result
+   }
+   ,ReadAmbientClassMember:function(Self) {
+      var Result = null;
+      var MemberName = "",
+         Nullable$2 = false;
+      TTranslator.AssumeIdentifier(Self,[92, 17, 9, 82].slice());
+      if (TTranslator.a$1(Self)==17) {
+         Result = TTranslator.ReadCallbackInterface(Self);
+      } else {
+         MemberName = TTranslator.a$2(Self);
+         TTranslator.ReadToken$2(Self,[25, 53, 54, 17].slice(),true);
+         if (TTranslator.a$1(Self)==25) {
+            TTranslator.ReadTypeParameter(Self);
+            TTranslator.ReadToken$2(Self,[53, 54, 17].slice(),true);
+         }
+         Nullable$2 = TTranslator.a$1(Self)==53;
+         if (Nullable$2) {
+            TTranslator.ReadToken$1(Self,54,true);
+         }
+         switch (TTranslator.a$1(Self)) {
+            case 54 :
+               Result = TTranslator.ReadFieldDeclaration(Self);
+               $As(Result,TFieldDeclaration).Nullable = Nullable$2;
+               break;
+            case 17 :
+               if ((MemberName).toLowerCase()=="constructor") {
+                  Result = TTranslator.ReadConstructorDeclaration(Self);
+               } else {
+                  Result = TTranslator.ReadMethodDeclaration(Self);
+               }
+               break;
+         }
+         Result.Name = MemberName;
+      }
+      if (Self.NeedsSemicolon) {
+         TTranslator.AssumeToken$1(Self,[23, 24, 16].slice());
       }
       return Result
    }
-   ,ReadDeclarationExpression:function(Self) {
+   ,ReadAmbientDeclaration:function(Self) {
       var Result = null;
       TTranslator.AssumeToken(Self,122);
-      Result = TCustomExpression.Create$4$($New(TDeclarationExpression),$AsIntf(Self,"IExpressionOwner"));
-      while (TTranslator.ReadToken(Self)>0) {
-         switch (Self.FScanner.getToken()) {
-            case 122 :
-               continue;
-               break;
+      Result = TCustomDeclaration.Create$4$($New(TAmbientDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadToken$2(Self,[102, 108, 74, 87, 73, 81, 125, 126].slice(),true);
+      switch (TTranslator.a$1(Self)) {
+         case 102 :
+         case 108 :
+         case 74 :
+            Result.Variables.push(TTranslator.ReadAmbientVariableDeclaration(Self));
+            break;
+         case 87 :
+            Result.Functions.push(TTranslator.ReadAmbientFunctionDeclaration(Self));
+            break;
+         case 73 :
+            Result.Classes.push(TTranslator.ReadAmbientClassDeclaration(Self));
+            break;
+         case 81 :
+            Result.Enums.push(TTranslator.ReadAmbientEnumDeclaration(Self));
+            break;
+         case 125 :
+            Result.Modules.push(TTranslator.ReadAmbientModuleDeclaration(Self));
+            break;
+         case 126 :
+            Result.Namespaces.push(TTranslator.ReadAmbientNamespaceDeclaration(Self));
+            break;
+      }
+      return Result
+   }
+   ,ReadAmbientEnumDeclaration:function(Self) {
+      var Result = null;
+      return Result
+   }
+   ,ReadAmbientFunctionDeclaration:function(Self) {
+      var Result = null;
+      TTranslator.AssumeToken(Self,87);
+      Result = TCustomDeclaration.Create$4$($New(TAmbientFunctionDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadIdentifier(Self,true);
+      Result.BindingIdentifier = TTranslator.a$2(Self);
+      Result.CallSignature = TTranslator.ReadCallSignature(Self);
+      if (Self.NeedsSemicolon) {
+         TTranslator.AssumeToken$1(Self,[23].slice());
+      }
+      return Result
+   }
+   ,ReadAmbientModuleDeclaration:function(Self) {
+      var Result = null;
+      var ModuleTokens = [],
+         ModuleTokens = [82, 102, 87, 73, 107, 81, 125, 89, 16, 23].slice();
+      var IsExport = false;
+      TTranslator.AssumeToken(Self,125);
+      Result = TCustomDeclaration.Create$4$($New(TAmbientModuleDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadIdentifier$1(Self,[9].slice(),true);
+      Result.IdentifierPath = TTranslator.ReadIdentifierPath(Self);
+      TTranslator.AssumeToken(Self,15);
+      TTranslator.ReadToken$2(Self,ModuleTokens,true);
+      while (TTranslator.a$1(Self)!=16) {
+         IsExport = TTranslator.a$1(Self)==82;
+         if (IsExport) {
+            TTranslator.ReadToken$2(Self,ModuleTokens.concat([77, 56]),true);
+            if (TTranslator.a$1(Self)==77) {
+               IsExport = false;
+               TTranslator.ReadIdentifier(Self,false);
+               TTranslator.ReadToken$1(Self,23,false);
+               TTranslator.ReadToken$2(Self,ModuleTokens,true);
+            }
+            if (TTranslator.a$1(Self)==56) {
+               IsExport = false;
+               TTranslator.ReadIdentifier(Self,false);
+               TTranslator.ReadToken$1(Self,23,false);
+               TTranslator.ReadToken$2(Self,ModuleTokens,true);
+            }
+         }
+         switch (TTranslator.a$1(Self)) {
             case 102 :
-               Result.Variables.push(TTranslator.ReadVariableExpression(Self));
+               Result.Variables.push(TTranslator.ReadAmbientVariableDeclaration(Self));
                break;
             case 87 :
-               Result.Functions.push(TTranslator.ReadFunctionExpression(Self));
-               break;
-            case 125 :
-               Result.Modules.push(TTranslator.ReadModuleExpression(Self));
-               break;
-            case 107 :
-               Result.Interfaces.push(TTranslator.ReadInterfaceExpression(Self));
+               Result.Functions.push(TTranslator.ReadAmbientFunctionDeclaration(Self));
                break;
             case 73 :
-               Result.Classes.push(TTranslator.ReadClassExpression(Self));
+               Result.Classes.push(TTranslator.ReadAmbientClassDeclaration(Self));
+               TTranslator.ReadToken$2(Self,ModuleTokens,true);
                break;
-            case 81 :
-               TTranslator.ReadEnumerationExpression(Self);
+            case 125 :
+               Result.Modules.push(TTranslator.ReadAmbientModuleDeclaration(Self));
+               TTranslator.ReadToken$2(Self,ModuleTokens,true);
                break;
-            case 1 :
-               return Result;
+            case 107 :
+               Result.Interfaces.push(TTranslator.ReadInterfaceDeclaration(Self));
+               TTranslator.ReadToken$2(Self,ModuleTokens,true);
                break;
-            default :
-               TTranslator.HandleScanError(Self);
+            case 89 :
+               TTranslator.ReadImportDeclaration(Self);
+               if (!Self.NeedsSemicolon) {
+                  TTranslator.ReadToken$2(Self,ModuleTokens,true);
+               }
+               break;
+         }
+         if (TTranslator.a$1(Self)==23) {
+            TTranslator.ReadToken$2(Self,ModuleTokens,true);
          }
       }
+      TTranslator.AssumeToken(Self,16);
+      return Result
+   }
+   ,ReadAmbientNamespaceDeclaration:function(Self) {
+      var Result = null;
+      return Result
+   }
+   ,ReadAmbientVariableDeclaration:function(Self) {
+      var Result = null;
+      TTranslator.AssumeToken$1(Self,[102, 108, 74].slice());
+      Result = TCustomDeclaration.Create$4$($New(TAmbientVariableDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      Result.IsConst = TTranslator.a$1(Self)==74;
+      do {
+         Result.AmbientBindingList.push(TTranslator.ReadAmbientBinding(Self));
+      } while (!(TTranslator.a$1(Self)==23||(!Self.NeedsSemicolon)&&(!Self.FScanner.isIdentifier())));
+      return Result
+   }
+   ,ReadCallbackInterface:function(Self) {
+      var Result = null;
+      Result = TCustomDeclaration.Create$4$($New(TCallbackDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      Result.Type = TTranslator.ReadFunctionType(Self);
+      TTranslator.AssumeToken$1(Self,[23, 16].slice());
+      return Result
+   }
+   ,ReadCallSignature:function(Self) {
+      var Result = null;
+      Result = TCustomDeclaration.Create$4$($New(TCallSignature),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadToken$2(Self,[17, 25].slice(),true);
+      if (TTranslator.a$1(Self)==25) {
+         TTranslator.ReadTypeParameter(Self);
+         TTranslator.ReadToken$1(Self,17,true);
+      }
+      TTranslator.AssumeToken(Self,17);
+      TTranslator.ReadIdentifier$1(Self,[112, 110, 111, 22, 18].slice(),true);
+      while (TTranslator.a$1(Self)!=18) {
+         Result.ParameterList.push(TTranslator.ReadParameter(Self));
+         if (TTranslator.a$1(Self)==24) {
+            TTranslator.ReadIdentifier$1(Self,[22].slice(),false);
+         }
+      }
+      TTranslator.AssumeToken$1(Self,[18].slice());
+      TTranslator.ReadToken$2(Self,[54, 23].slice(),true);
+      if (TTranslator.a$1(Self)==54) {
+         Result.Type = TTranslator.ReadType(Self);
+      }
+      return Result
+   }
+   ,ReadClassDeclaration:function(Self) {
+      var Result = null;
+      var ClassElementTokens$1 = [],
+         Visibility$2 = 0,
+         IsStatic$2 = false,
+         Member$1 = null;
+      TTranslator.AssumeToken(Self,73);
+      Result = TCustomDeclaration.Create$4$($New(TClassDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadIdentifier(Self,true);
+      Result.Name = TTranslator.a$2(Self);
+      console.log("Read class: "+Result.Name);
+      TTranslator.ReadToken$2(Self,[83, 106, 15].slice(),true);
+      if (TTranslator.a$1(Self)==83) {
+         TTranslator.ReadIdentifier(Self,true);
+         Result.Extends.push(TTranslator.ReadTypeReference(Self));
+      }
+      if (TTranslator.a$1(Self)==106) {
+         TTranslator.ReadIdentifier(Self,true);
+         Result.Implements.push(TTranslator.ReadIdentifierPath(Self));
+         while (TTranslator.a$1(Self)==24) {
+            TTranslator.ReadIdentifier(Self,true);
+            Result.Implements.push(TTranslator.ReadIdentifierPath(Self));
+         }
+      }
+      TTranslator.AssumeToken(Self,15);
+      TTranslator.AssumeToken(Self,15);
+      ClassElementTokens$1.push(92, 9, 82, 16, 23);
+      TTranslator.ReadIdentifier$1(Self,ClassElementTokens$1,false);
+      while (TTranslator.a$1(Self)!=16) {
+         Visibility$2 = 0;
+         switch (TTranslator.a$1(Self)) {
+            case 112 :
+               Visibility$2 = 0;
+               TTranslator.ReadIdentifier$1(Self,[92].slice(),true);
+               break;
+            case 111 :
+               Visibility$2 = 1;
+               TTranslator.ReadIdentifier$1(Self,[92].slice(),true);
+               break;
+            case 110 :
+               Visibility$2 = 2;
+               TTranslator.ReadIdentifier$1(Self,[92].slice(),true);
+               break;
+         }
+         IsStatic$2 = TTranslator.a$1(Self)==113;
+         if (IsStatic$2) {
+            TTranslator.ReadIdentifier$1(Self,[92, 17].slice(),true);
+         }
+         Member$1 = TTranslator.ReadAmbientClassMember(Self);
+         Member$1.Visibility = Visibility$2;
+         Member$1.IsStatic = IsStatic$2;
+         Result.Members.push(Member$1);
+         if (TTranslator.a$1(Self)==23) {
+            TTranslator.ReadIdentifier$1(Self,ClassElementTokens$1,false);
+         }
+      }
+      return Result
+   }
+   ,ReadClassMember:function(Self) {
+      var Result = null;
+      var MemberName$1 = "",
+         Nullable$3 = false;
+      TTranslator.AssumeIdentifier(Self,[92, 17, 9, 82].slice());
+      if (TTranslator.a$1(Self)==17) {
+         Result = TTranslator.ReadCallbackInterface(Self);
+      } else {
+         MemberName$1 = TTranslator.a$2(Self);
+         TTranslator.ReadToken$2(Self,[25, 53, 54, 17].slice(),true);
+         if (TTranslator.a$1(Self)==25) {
+            TTranslator.ReadTypeParameter(Self);
+            TTranslator.ReadToken$2(Self,[53, 54, 17].slice(),true);
+         }
+         Nullable$3 = TTranslator.a$1(Self)==53;
+         if (Nullable$3) {
+            TTranslator.ReadToken$1(Self,54,true);
+         }
+         switch (TTranslator.a$1(Self)) {
+            case 54 :
+               Result = TTranslator.ReadFieldDeclaration(Self);
+               $As(Result,TFieldDeclaration).Nullable = Nullable$3;
+               break;
+            case 17 :
+               if ((MemberName$1).toLowerCase()=="constructor") {
+                  Result = TTranslator.ReadConstructorDeclaration(Self);
+               } else {
+                  Result = TTranslator.ReadMethodDeclaration(Self);
+               }
+               break;
+         }
+         Result.Name = MemberName$1;
+      }
+      if (Self.NeedsSemicolon) {
+         TTranslator.AssumeToken$1(Self,[23, 24, 16].slice());
+      }
+      return Result
+   }
+   ,ReadConstructorDeclaration:function(Self) {
+      var Result = null;
+      Result = TCustomDeclaration.Create$4$($New(TConstructorDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      Result.Type = TTranslator.ReadFunctionType(Self);
+      if (Self.NeedsSemicolon) {
+         TTranslator.AssumeToken$1(Self,[23, 16].slice());
+      }
+      return Result
+   }
+   ,ReadConstructorSignature:function(Self) {
+      var Result = null;
+      TTranslator.AssumeToken(Self,92);
+      Result = TCustomDeclaration.Create$4$($New(TConstructorDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      if (TTranslator.ReadIdentifier(Self,false)) {
+         TTranslator.ReadToken$1(Self,17,false);
+      }
+      TTranslator.AssumeToken(Self,17);
+      TTranslator.ReadIdentifier$1(Self,[112, 110, 111, 22, 18].slice(),true);
+      while (TTranslator.a$1(Self)!=18) {
+         Result.ParameterList.push(TTranslator.ReadParameter(Self));
+         if (TTranslator.a$1(Self)==24) {
+            TTranslator.ReadIdentifier$1(Self,[22].slice(),false);
+         }
+      }
+      TTranslator.AssumeToken(Self,18);
+      TTranslator.ReadToken$1(Self,54,true);
+      Result.Type = TTranslator.ReadTypeAnnotation(Self);
       return Result
    }
    ,ReadDefinition:function(Self) {
-      while (TTranslator.ReadToken(Self)>0) {
-         switch (Self.FScanner.getToken()) {
-            case 82 :
+      while (TTranslator.ReadToken$2(Self,[82, 122, 107, 125, 89, 1].slice(),true)) {
+         {var $temp4 = TTranslator.a$1(Self);
+            if ($temp4==82) {
                continue;
+            }
+             else if ($temp4==122) {
+               Self.FDeclarations.push(TTranslator.ReadAmbientDeclaration(Self));
+            }
+             else if ($temp4==107) {
+               Self.FInterfaces.push(TTranslator.ReadInterfaceDeclaration(Self));
+            }
+             else if ($temp4==125) {
+               Self.FModules.push(TTranslator.ReadModuleDeclaration(Self));
+            }
+             else if ($temp4==89) {
+               TTranslator.ReadImportDeclaration(Self)            }
+             else if ($temp4==1) {
                break;
-            case 122 :
-               Self.FDeclarations.push(TTranslator.ReadDeclarationExpression(Self));
-               break;
-            case 107 :
-               Self.FInterfaces.push(TTranslator.ReadInterfaceExpression(Self));
-               break;
-            case 125 :
-               Self.FModules.push(TTranslator.ReadModuleExpression(Self));
-               break;
-            case 89 :
-               TTranslator.ReadImportExpression(Self);
-               break;
-            case 1 :
-               return;
-               break;
-            default :
-               TTranslator.HandleScanError(Self);
+            }
          }
       }
    }
-   ,ReadEnumerationExpression:function(Self) {
+   ,ReadEnumerationDeclaration:function(Self) {
       var Result = null;
       TTranslator.AssumeToken(Self,81);
-      Result = TCustomExpression.Create$4$($New(TEnumerationExpression),$AsIntf(Self,"IExpressionOwner"));
+      Result = TCustomDeclaration.Create$4$($New(TEnumerationDeclaration),$AsIntf(Self,"IDeclarationOwner"));
       TTranslator.ReadIdentifier(Self,true);
-      Result.Name = Self.FScanner.getTokenText();
+      Result.Name = TTranslator.a$2(Self);
       TTranslator.ReadToken$1(Self,15,true);
       TTranslator.ReadIdentifier(Self,true);
       do {
@@ -434,45 +745,65 @@ var TTranslator = {
    }
    ,ReadEnumerationItem:function(Self) {
       var Result = null;
-      TTranslator.AssumeIdentifier(Self);
-      Result = TCustomExpression.Create$4$($New(TEnumerationItem),$AsIntf(Self,"IExpressionOwner"));
-      Result.Name = Self.FScanner.getTokenText();
+      TTranslator.AssumeIdentifier(Self,[]);
+      Result = TCustomDeclaration.Create$4$($New(TEnumerationItem),$AsIntf(Self,"IDeclarationOwner"));
+      Result.Name = TTranslator.a$2(Self);
       if (TTranslator.ReadToken$1(Self,56,false)) {
          TTranslator.ReadToken$1(Self,8,true);
-         Result.Value = Self.FScanner.getTokenText();
+         Result.Value = TTranslator.a$2(Self);
          TTranslator.ReadToken(Self);
       }
       TTranslator.AssumeToken(Self,24);
       return Result
    }
-   ,ReadFieldExpression:function(Self) {
+   ,ReadExportDeclaration:function(Self) {
       var Result = null;
-      Result = TCustomExpression.Create$4$($New(TFieldExpression),$AsIntf(Self,"IExpressionOwner"));
-      Result.Type = TTranslator.ReadType(Self);
-      TTranslator.AssumeToken(Self,23);
+      TTranslator.AssumeToken(Self,82);
+      Result = TCustomDeclaration.Create$4$($New(TExportDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadIdentifier$1(Self,[77].slice(),true);
+      Result.FDefault = TTranslator.a$1(Self)==82||(TTranslator.a$2(Self)).toLowerCase()=="default";
+      if (Result.FDefault) {
+         TTranslator.ReadIdentifier(Self,true);
+      }
+      Result.Name = TTranslator.a$2(Self);
+      TTranslator.ReadToken$1(Self,23,true);
       return Result
    }
-   ,ReadFunctionExpression:function(Self) {
+   ,ReadFieldDeclaration:function(Self) {
       var Result = null;
-      TTranslator.AssumeToken(Self,102);
-      Result = TCustomExpression.Create$4$($New(TFunctionExpression),$AsIntf(Self,"IExpressionOwner"));
+      Result = TCustomDeclaration.Create$4$($New(TFieldDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      Result.Type = TTranslator.ReadType(Self);
+      if (Self.NeedsSemicolon) {
+         TTranslator.AssumeIdentifier(Self,[23, 16, 24].slice());
+      }
+      return Result
+   }
+   ,ReadFunctionDeclaration:function(Self) {
+      var Result = null;
+      TTranslator.AssumeToken(Self,87);
+      Result = TCustomDeclaration.Create$4$($New(TFunctionDeclaration),$AsIntf(Self,"IDeclarationOwner"));
       TTranslator.ReadIdentifier(Self,true);
-      Result.Name = Self.FScanner.getTokenText();
+      Result.Name = TTranslator.a$2(Self);
       TTranslator.ReadToken$1(Self,17,true);
       Result.Type = TTranslator.ReadFunctionType(Self);
       return Result
    }
    ,ReadFunctionParameter:function(Self) {
       var Result = null;
-      TTranslator.AssumeIdentifier(Self);
-      Result = TCustomExpression.Create$4$($New(TFunctionParameter),$AsIntf(Self,"IExpressionOwner"));
-      Result.Name = Self.FScanner.getTokenText();
-      TTranslator.ReadToken$2(Self,[53, 54, 18].slice(),true);
-      Result.Nullable = Self.FScanner.getToken()==53;
-      if (Result.Nullable) {
-         TTranslator.ReadToken$1(Self,54,true);
+      var OpenArray = false;
+      TTranslator.AssumeIdentifier(Self,[22].slice());
+      OpenArray = TTranslator.a$1(Self)==22;
+      if (OpenArray) {
+         TTranslator.ReadIdentifier(Self,true);
       }
-      if (Self.FScanner.getToken()==54) {
+      Result = TCustomDeclaration.Create$4$($New(TFunctionParameter),$AsIntf(Self,"IDeclarationOwner"));
+      Result.Name = TTranslator.a$2(Self);
+      TTranslator.ReadToken$2(Self,[53, 54, 18].slice(),true);
+      Result.Nullable = TTranslator.a$1(Self)==53;
+      if (Result.Nullable) {
+         TTranslator.ReadToken$2(Self,[54].slice(),true);
+      }
+      if (TTranslator.a$1(Self)==54) {
          Result.Type = TTranslator.ReadType(Self);
       }
       return Result
@@ -480,157 +811,291 @@ var TTranslator = {
    ,ReadFunctionType:function(Self) {
       var Result = null;
       TTranslator.AssumeToken(Self,17);
-      Result = TCustomExpression.Create$4$($New(TFunctionType),$AsIntf(Self,"IExpressionOwner"));
-      while (TTranslator.ReadIdentifier(Self,false)) {
+      Result = TCustomDeclaration.Create$4$($New(TFunctionType),$AsIntf(Self,"IDeclarationOwner"));
+      while (TTranslator.ReadIdentifier$1(Self,[22].slice(),false)) {
          Result.Parameters.push(TTranslator.ReadFunctionParameter(Self));
-         TTranslator.AssumeToken$1(Self,[24, 18].slice());
-         if (Self.FScanner.getToken()==18) {
+         TTranslator.AssumeToken$1(Self,[24, 18, 23].slice());
+         if (TTranslator.a$1(Self)==18) {
             break;
          }
       }
-      TTranslator.AssumeToken(Self,18);
+      TTranslator.AssumeToken$1(Self,[18, 23].slice());
       if (TTranslator.ReadToken$2(Self,[54, 34].slice(),false)) {
          Result.ResultType = TTranslator.ReadType(Self);
       }
       return Result
    }
-   ,ReadIdentifier:function(Self, Required) {
+   ,ReadIdentifier$1:function(Self, AdditionalToken$1, Required) {
+      var Result = false;
+      TTranslator.ReadToken(Self);
+      Result = Self.FScanner.isIdentifier()||AdditionalToken$1.indexOf(TTranslator.a$1(Self))>=0;
+      if ((!Result)&&Required) {
+         TTranslator.HandleScanError(Self,0);
+      }
+      return Result
+   }
+   ,ReadIdentifier:function(Self, Required$1) {
       var Result = false;
       TTranslator.ReadToken(Self);
       Result = Self.FScanner.isIdentifier();
-      if ((!Result)&&Required) {
-         TTranslator.HandleScanError(Self);
+      if ((!Result)&&Required$1) {
+         TTranslator.HandleScanError(Self,69);
       }
       return Result
    }
-   ,ReadImportExpression:function(Self) {
+   ,ReadIdentifierPath:function(Self) {
+      var Result = "";
+      TTranslator.AssumeIdentifier(Self,[9].slice());
+      Result = TTranslator.a$2(Self);
+      while (TTranslator.ReadToken$1(Self,21,false)) {
+         TTranslator.ReadIdentifier(Self,true);
+         Result+="."+TTranslator.a$2(Self);
+      }
+      return Result
+   }
+   ,ReadImportDeclaration:function(Self) {
       var Result = null;
       TTranslator.AssumeToken(Self,89);
-      Result = TCustomExpression.Create$4$($New(TImportExpression),$AsIntf(Self,"IExpressionOwner"));
+      Result = TCustomDeclaration.Create$4$($New(TImportDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadIdentifier$1(Self,[37].slice(),true);
+      if (TTranslator.a$1(Self)==37) {
+         TTranslator.ReadToken$1(Self,116,true);
+         TTranslator.ReadIdentifier(Self,true);
+         TTranslator.ReadToken$1(Self,133,true);
+         TTranslator.ReadToken$1(Self,9,true);
+      } else {
+         TTranslator.ReadToken$1(Self,56,true);
+         TTranslator.ReadIdentifier(Self,true);
+      }
+      if (Self.NeedsSemicolon) {
+         TTranslator.ReadToken$1(Self,23,true);
+      }
       return Result
    }
-   ,ReadInterfaceExpression:function(Self) {
+   ,ReadIndexSignature:function(Self) {
       var Result = null;
-      var List$1 = [];
-      TTranslator.AssumeToken(Self,107);
-      Result = TCustomExpression.Create$4$($New(TInterfaceExpression),$AsIntf(Self,"IExpressionOwner"));
+      TTranslator.AssumeToken(Self,19);
+      Result = TCustomDeclaration.Create$4$($New(TIndexDeclaration),$AsIntf(Self,"IDeclarationOwner"));
       TTranslator.ReadIdentifier(Self,true);
-      Result.Name = Self.FScanner.getTokenText();
-      console.log("Read interface: "+Result.Name);
-      TTranslator.ReadToken(Self);
-      while (([83,106].indexOf(Self.FScanner.getToken())>=0)) {
-         List$1 = (Self.FScanner.getToken()==83)?Result.Extends:Result.Implements;
+      TTranslator.ReadToken$1(Self,54,true);
+      TTranslator.ReadToken$2(Self,[130, 128].slice(),true);
+      Result.IsStringIndex = TTranslator.a$1(Self)==130;
+      TTranslator.ReadToken$1(Self,20,true);
+      TTranslator.ReadToken$1(Self,54,true);
+      Result.Type = TTranslator.ReadTypeAnnotation(Self);
+      return Result
+   }
+   ,ReadInterfaceDeclaration:function(Self) {
+      var Result = null;
+      TTranslator.AssumeToken(Self,107);
+      Result = TCustomDeclaration.Create$4$($New(TInterfaceDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadIdentifier(Self,true);
+      Result.Name = TTranslator.a$2(Self);
+      TTranslator.ReadToken$2(Self,[25, 83, 15].slice(),true);
+      if (TTranslator.a$1(Self)==25) {
+         TTranslator.ReadTypeParameter(Self);
+         TTranslator.ReadToken$2(Self,[83, 15].slice(),true);
+      }
+      while (TTranslator.a$1(Self)==83) {
          TTranslator.ReadIdentifier(Self,true);
-         List$1.push(TTranslator.ReadScopedName(Self));
-         while (Self.FScanner.getToken()==24) {
+         Result.Extends.push(TTranslator.ReadTypeReference(Self));
+         while (TTranslator.a$1(Self)==24) {
             TTranslator.ReadIdentifier(Self,true);
-            List$1.push(TTranslator.ReadScopedName(Self));
+            Result.Extends.push(TTranslator.ReadTypeReference(Self));
          }
       }
       TTranslator.AssumeToken(Self,15);
-      while (TTranslator.ReadIdentifier(Self,false)) {
-         Result.Members.push(TTranslator.ReadStructureMember(Self));
+      Result.Type = TTranslator.ReadObjectType(Self);
+      TTranslator.AssumeToken(Self,16);
+      return Result
+   }
+   ,ReadMethodDeclaration:function(Self) {
+      var Result = null;
+      Result = TCustomDeclaration.Create$4$($New(TMethodDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      Result.Type = TTranslator.ReadFunctionType(Self);
+      if (Self.NeedsSemicolon) {
+         TTranslator.AssumeToken$1(Self,[23, 16].slice());
       }
       return Result
    }
-   ,ReadMethodExpression:function(Self) {
+   ,ReadModuleDeclaration:function(Self) {
       var Result = null;
-      Result = TCustomExpression.Create$4$($New(TMethodExpression),$AsIntf(Self,"IExpressionOwner"));
-      Result.Type = TTranslator.ReadFunctionType(Self);
-      TTranslator.AssumeToken(Self,23);
-      return Result
-   }
-   ,ReadModuleExpression:function(Self) {
-      var Result = null;
+      var ModuleTokens$1 = [],
+         ModuleTokens$1 = [73, 82, 81, 89, 125, 87, 107, 102, 23].slice();
       TTranslator.AssumeToken(Self,125);
-      Result = TCustomExpression.Create$4$($New(TModuleExpression),$AsIntf(Self,"IExpressionOwner"));
-      TTranslator.ReadIdentifier(Self,true);
-      Result.Name = TTranslator.ReadScopedName(Self);
-      console.log("Read module: "+Result.Name);
+      Result = TCustomDeclaration.Create$4$($New(TModuleDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadIdentifier$1(Self,[9].slice(),true);
+      Result.Name = TTranslator.ReadIdentifierPath(Self);
       TTranslator.AssumeToken(Self,15);
-      while (TTranslator.ReadToken$2(Self,[73, 82, 81, 89, 107, 102].slice(),false)) {
-         switch (Self.FScanner.getToken()) {
+      TTranslator.ReadToken$2(Self,ModuleTokens$1,true);
+      while (TTranslator.a$1(Self)!=16) {
+         switch (TTranslator.a$1(Self)) {
             case 73 :
-               Result.Classes.push(TTranslator.ReadClassExpression(Self));
+               Result.Classes.push(TTranslator.ReadAmbientClassDeclaration(Self));
                break;
             case 82 :
-               continue;
+               Result.Exports.push(TTranslator.ReadExportDeclaration(Self));
                break;
             case 81 :
-               TTranslator.ReadEnumerationExpression(Self);
+               TTranslator.ReadEnumerationDeclaration(Self);
+               break;
+            case 87 :
+               Result.Functions.push(TTranslator.ReadFunctionDeclaration(Self));
                break;
             case 89 :
-               TTranslator.ReadImportExpression(Self);
+               TTranslator.ReadImportDeclaration(Self);
+               break;
+            case 125 :
+               Result.Modules.push(TTranslator.ReadModuleDeclaration(Self));
                break;
             case 107 :
-               Result.Interfaces.push(TTranslator.ReadInterfaceExpression(Self));
+               Result.Interfaces.push(TTranslator.ReadInterfaceDeclaration(Self));
                break;
             case 102 :
-               Result.Variables.push(TTranslator.ReadVariableExpression(Self));
+               Result.Variables.push(TTranslator.ReadVariableDeclaration(Self));
                break;
-            default :
-               TTranslator.HandleScanError(Self);
          }
+         TTranslator.ReadToken$2(Self,ModuleTokens$1,true);
       }
       TTranslator.AssumeToken(Self,16);
       return Result
    }
    ,ReadObjectType:function(Self) {
       var Result = null;
+      var ObjectTokens = [],
+         ObjectTokens = [9, 8, 92, 17, 78, 19, 16].slice();
       TTranslator.AssumeToken(Self,15);
-      Result = TCustomExpression.Create$4$($New(TObjectType),$AsIntf(Self,"IExpressionOwner"));
-      while (Self.FScanner.scan()!=16) {
-         /* null */
+      Result = TCustomDeclaration.Create$4$($New(TObjectType),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadIdentifier$1(Self,ObjectTokens,true);
+      while (TTranslator.a$1(Self)!=16) {
+         Result.Members.push(TTranslator.ReadTypeMember(Self));
+         if (([23,24].indexOf(TTranslator.a$1(Self))>=0)) {
+            TTranslator.ReadIdentifier$1(Self,ObjectTokens,true);
+         }
       }
+      TTranslator.AssumeToken(Self,16);
       return Result
    }
-   ,ReadScopedName:function(Self) {
-      var Result = "";
-      TTranslator.AssumeIdentifier(Self);
-      Result = Self.FScanner.getTokenText();
-      while (TTranslator.ReadToken$1(Self,21,false)) {
-         TTranslator.ReadIdentifier(Self,true);
-         Result+="."+Self.FScanner.getTokenText();
-      }
-      return Result
-   }
-   ,ReadStructureMember:function(Self) {
+   ,ReadParameter:function(Self) {
       var Result = null;
-      var MemberName = "",
-         Nullable$2 = false;
-      TTranslator.AssumeIdentifier(Self);
-      MemberName = Self.FScanner.getTokenText();
-      TTranslator.ReadToken$2(Self,[53, 54, 17].slice(),true);
-      Nullable$2 = Self.FScanner.getToken()==53;
-      if (Nullable$2) {
-         TTranslator.ReadToken$1(Self,54,true);
+      TTranslator.AssumeIdentifier(Self,[112, 110, 111, 22].slice());
+      Result = TObject.Create($New(TParameter));
+      Result.IsRest = TTranslator.a$1(Self)==22;
+      if (Result.IsRest) {
+         TTranslator.ReadIdentifier(Self,true);
+         Result.BindingIdentifier = TTranslator.a$2(Self);
+         if (TTranslator.ReadToken$1(Self,54,false)) {
+            Result.Type = TTranslator.ReadTypeAnnotation(Self);
+         }
+         TTranslator.AssumeToken(Self,18);
+         return Result;
       }
-      switch (Self.FScanner.getToken()) {
-         case 54 :
-            Result = TTranslator.ReadFieldExpression(Self);
-            $As(Result,TFieldExpression).Nullable = Nullable$2;
+      TTranslator.AssumeIdentifier(Self,[112, 110, 111].slice());
+      switch (TTranslator.a$1(Self)) {
+         case 112 :
+            Result.AccessibilityModifier = 0;
+            TTranslator.ReadIdentifier(Self,false);
             break;
-         case 17 :
-            Result = TTranslator.ReadMethodExpression(Self);
+         case 110 :
+            Result.AccessibilityModifier = 1;
+            TTranslator.ReadIdentifier(Self,false);
+            break;
+         case 111 :
+            Result.AccessibilityModifier = 2;
+            TTranslator.ReadIdentifier(Self,false);
             break;
       }
-      Result.Name = MemberName;
-      TTranslator.AssumeToken(Self,23);
+      TTranslator.AssumeIdentifier(Self,[]);
+      TTranslator.ReadToken$2(Self,[53, 54, 56, 24, 18].slice(),true);
+      Result.IsOptional = TTranslator.a$1(Self)==53;
+      if (Result.IsOptional) {
+         TTranslator.ReadToken$2(Self,[54, 56, 24, 18].slice(),true);
+      }
+      if (TTranslator.a$1(Self)==54) {
+         Result.Type = TTranslator.ReadType(Self);
+      }
+      TTranslator.AssumeToken$1(Self,[56, 24, 18].slice());
+      if (TTranslator.a$1(Self)==56) {
+         TTranslator.ReadIdentifier(Self,true);
+         Result.DefaultValue = TTranslator.a$2(Self);
+      }
+      TTranslator.AssumeToken$1(Self,[24, 18].slice());
       return Result
    }
-   ,ReadToken$2:function(Self, Tokens$1, Required$1) {
+   ,ReadPrimaryType:function(Self) {
+      var Result = null;
+      var PrimaryTypeTokens = [],
+         PrimaryTypeTokens = [69, 9, 117, 15, 128, 130, 120, 103, 101, 17].slice();
+      var OldType = null;
+      TTranslator.AssumeToken$1(Self,PrimaryTypeTokens);
+      switch (TTranslator.a$1(Self)) {
+         case 17 :
+            Result = TTranslator.ReadType(Self);
+            TTranslator.AssumeToken(Self,18);
+            TTranslator.ReadToken(Self);
+            break;
+         case 69 :
+            Result = TNamedType.Create$5($New(TNamedType),$AsIntf(Self,"IDeclarationOwner"),TTranslator.ReadIdentifierPath(Self));
+            if (TTranslator.a$1(Self)==25) {
+               $As(Result,TNamedType).Arguments.push(TTranslator.ReadTypeArgument(Self));
+               TTranslator.ReadToken(Self);
+            }
+            break;
+         case 9 :
+            Result = TNamedType.Create$5($New(TNamedType),$AsIntf(Self,"IDeclarationOwner"),TTranslator.a$2(Self));
+            TTranslator.ReadToken(Self);
+            break;
+         case 117 :
+            Result = TCustomDeclaration.Create$4$($New(TVariantType),$AsIntf(Self,"IDeclarationOwner"));
+            TTranslator.ReadToken(Self);
+            break;
+         case 128 :
+            Result = TCustomDeclaration.Create$4$($New(TFloatType),$AsIntf(Self,"IDeclarationOwner"));
+            TTranslator.ReadToken(Self);
+            break;
+         case 103 :
+            Result = null;
+            TTranslator.ReadToken(Self);
+            break;
+         case 101 :
+            Result = TCustomDeclaration.Create$4$($New(TTypeOfType),$AsIntf(Self,"IDeclarationOwner"));
+            $As(Result,TTypeOfType).Type = TTranslator.ReadType(Self);
+            break;
+         case 130 :
+            Result = TCustomDeclaration.Create$4$($New(TStringType),$AsIntf(Self,"IDeclarationOwner"));
+            TTranslator.ReadToken(Self);
+            break;
+         case 120 :
+            Result = TCustomDeclaration.Create$4$($New(TBooleanType),$AsIntf(Self,"IDeclarationOwner"));
+            TTranslator.ReadToken(Self);
+            break;
+         case 15 :
+            Result = TTranslator.ReadObjectType(Self);
+            TTranslator.ReadToken(Self);
+            break;
+      }
+      while (TTranslator.a$1(Self)==19) {
+         OldType = Result;
+         Result = TCustomDeclaration.Create$4$($New(TArrayType),$AsIntf(Self,"IDeclarationOwner"));
+         $As(Result,TArrayType).Type = OldType;
+         TTranslator.ReadToken$1(Self,20,true);
+         TTranslator.ReadToken(Self);
+      }
+      return Result
+   }
+   ,ReadToken$2:function(Self, Tokens$1, Required$2) {
       var Result = false;
       Result = Tokens$1.indexOf(TTranslator.ReadToken(Self))>=0;
-      if ((!Result)&&Required$1) {
-         TTranslator.HandleScanError(Self);
+      if ((!Result)&&Required$2) {
+         TTranslator.HandleScanError(Self,0);
       }
       return Result
    }
-   ,ReadToken$1:function(Self, Token$1, Required$2) {
+   ,ReadToken$1:function(Self, Token$1, Required$3) {
       var Result = false;
       Result = TTranslator.ReadToken(Self)==Token$1;
-      if ((!Result)&&Required$2) {
-         TTranslator.HandleScanError(Self);
+      if ((!Result)&&Required$3) {
+         TTranslator.HandleScanError(Self,Token$1);
       }
       return Result
    }
@@ -641,64 +1106,113 @@ var TTranslator = {
    }
    ,ReadType:function(Self) {
       var Result = null;
-      TTranslator.ReadToken$2(Self,[69, 117, 15, 128, 130, 120, 103, 17].slice(),true);
-      switch (Self.FScanner.getToken()) {
-         case 69 :
-            Result = TNamedType.Create$5($New(TNamedType),$AsIntf(Self,"IExpressionOwner"),TTranslator.ReadScopedName(Self));
-            break;
-         case 117 :
-            Result = TCustomExpression.Create$4$($New(TVariantType),$AsIntf(Self,"IExpressionOwner"));
-            TTranslator.ReadToken(Self);
-            break;
-         case 128 :
-            Result = TCustomExpression.Create$4$($New(TFloatType),$AsIntf(Self,"IExpressionOwner"));
-            TTranslator.ReadToken(Self);
-            break;
-         case 103 :
-            Result = null;
-            TTranslator.ReadToken(Self);
-            break;
-         case 130 :
-            Result = TCustomExpression.Create$4$($New(TStringType),$AsIntf(Self,"IExpressionOwner"));
-            TTranslator.ReadToken(Self);
-            break;
-         case 120 :
-            Result = TCustomExpression.Create$4$($New(TBooleanType),$AsIntf(Self,"IExpressionOwner"));
-            TTranslator.ReadToken(Self);
-            break;
-         case 17 :
-            Result = TTranslator.ReadFunctionType(Self);
-            return Result;
-            break;
-         case 15 :
-            Result = TTranslator.ReadObjectType(Self);
-            TTranslator.ReadToken(Self);
-            break;
+      var TypeTokens = [],
+         OldType$1 = null;
+      TypeTokens.push(69, 9, 117, 15, 128, 130, 120, 103, 101, 17);
+      TTranslator.ReadToken$2(Self,TypeTokens,true);
+      if (TTranslator.a$1(Self)==17) {
+         return TTranslator.ReadFunctionType(Self);
       }
-      if (Self.FScanner.getToken()==19) {
-         Result.IsArray = true;
-         TTranslator.ReadToken$1(Self,20,true);
-         TTranslator.ReadToken(Self);
+      Result = TTranslator.ReadPrimaryType(Self);
+      while (TTranslator.a$1(Self)==47) {
+         if (!$Is(Result,TUnionType)) {
+            OldType$1 = Result;
+            Result = TCustomDeclaration.Create$4$($New(TUnionType),$AsIntf(Self,"IDeclarationOwner"));
+            $As(Result,TUnionType).Types.push(OldType$1);
+         }
+         TTranslator.ReadToken$2(Self,TypeTokens,true);
+         $As(Result,TUnionType).Types.push(TTranslator.ReadPrimaryType(Self));
       }
       return Result
    }
-   ,ReadVariableExpression:function(Self) {
+   ,ReadTypeAnnotation:function(Self) {
       var Result = null;
-      TTranslator.AssumeToken(Self,87);
-      Result = TCustomExpression.Create$4$($New(TVariableExpression),$AsIntf(Self,"IExpressionOwner"));
+      TTranslator.AssumeToken(Self,54);
+      Result = TTranslator.ReadType(Self);
+      return Result
+   }
+   ,ReadTypeArgument:function(Self) {
+      var Result = null;
+      TTranslator.AssumeToken(Self,25);
+      Result = TCustomDeclaration.Create$4$($New(TTypeArgument),$AsIntf(Self,"IDeclarationOwner"));
+      Result.Type = TTranslator.ReadType(Self);
+      TTranslator.AssumeToken(Self,27);
+      return Result
+   }
+   ,ReadTypeMember:function(Self) {
+      var Result = null;
+      var MemberName$2 = "",
+         Nullable$4 = false;
+      TTranslator.AssumeIdentifier(Self,[9, 8, 110, 92, 78, 17, 19].slice());
+      if (TTranslator.a$1(Self)==92) {
+         return TTranslator.ReadConstructorSignature(Self);
+      }
+      if (TTranslator.a$1(Self)==17) {
+         return TTranslator.ReadCallbackInterface(Self);
+      }
+      if (TTranslator.a$1(Self)==19) {
+         return TTranslator.ReadIndexSignature(Self);
+      }
+      if (Self.FScanner.isIdentifier()||([9,8,78].indexOf(Self.FScanner.getToken())>=0)) {
+         MemberName$2 = TTranslator.a$2(Self);
+         TTranslator.ReadToken$2(Self,[53, 54, 17].slice(),true);
+         Nullable$4 = TTranslator.a$1(Self)==53;
+         if (Nullable$4) {
+            TTranslator.ReadToken$1(Self,54,true);
+         }
+         switch (TTranslator.a$1(Self)) {
+            case 54 :
+               Result = TTranslator.ReadFieldDeclaration(Self);
+               $As(Result,TFieldDeclaration).Nullable = Nullable$4;
+               break;
+            case 17 :
+               Result = TTranslator.ReadMethodDeclaration(Self);
+               break;
+         }
+         Result.Name = MemberName$2;
+      }
+      return Result
+   }
+   ,ReadTypeParameter:function(Self) {
+      var Result = null;
+      TTranslator.AssumeToken(Self,25);
+      Result = TCustomDeclaration.Create$4$($New(TTypeParameter),$AsIntf(Self,"IDeclarationOwner"));
       TTranslator.ReadIdentifier(Self,true);
-      Result.Name = Self.FScanner.getTokenText();
+      Result.Name = TTranslator.a$2(Self);
+      TTranslator.ReadToken$2(Self,[83, 27].slice(),true);
+      if (TTranslator.a$1(Self)==83) {
+         Result.ExtendsType = TTranslator.ReadType(Self);
+         TTranslator.AssumeToken(Self,27);
+      }
+      return Result
+   }
+   ,ReadTypeReference:function(Self) {
+      var Result = null;
+      TTranslator.AssumeIdentifier(Self,[]);
+      Result = TCustomDeclaration.Create$4$($New(TTypeReference),$AsIntf(Self,"IDeclarationOwner"));
+      Result.Name = TTranslator.ReadIdentifierPath(Self);
+      return Result
+   }
+   ,ReadVariableDeclaration:function(Self) {
+      var Result = null;
+      TTranslator.AssumeToken(Self,102);
+      Result = TCustomDeclaration.Create$4$($New(TVariableDeclaration),$AsIntf(Self,"IDeclarationOwner"));
+      TTranslator.ReadIdentifier(Self,true);
+      Result.Name = TTranslator.a$2(Self);
       TTranslator.ReadToken$1(Self,54,true);
+      Result.Type = TTranslator.ReadType(Self);
       return Result
    }
    ,Translate:function(Self, Source) {
       var Result = "";
       Self.FScanner = TypeScriptExport.createScanner(0,true,0,Source);
+      Self.FSourceFile = TypeScriptExport.createSourceFile("main",Source,0);
       try {
          TTranslator.ReadDefinition$(Self);
       } catch ($e) {
          var e = $W($e);
-         console.log(e.FMessage)      }
+         console.error(e.FMessage);
+      }
       Result = TTranslator.BuildPascalHeader$(Self);
       return Result
    }
@@ -707,14 +1221,14 @@ var TTranslator = {
    ,ReadDefinition$:function($){return $.ClassType.ReadDefinition($)}
 };
 TTranslator.$Intf={
-   IExpressionOwner:[]
+   IDeclarationOwner:[]
 }
 var TNodeFlags = { 1:"Export", 2:"Ambient", 4:"Public", 8:"Private", 16:"Protected", 32:"Static", 64:"Abstract", 128:"Async", 256:"Default", 512:"MultiLine", 1024:"Synthetic", 2048:"DeclarationFile", 4096:"Let", 8192:"Const", 16384:"OctalLiteral", 32768:"Namespace", 65536:"ExportContext", 131072:"ContainsThis" };
 var TJsxFlags = { 1:"None", 2:"IntrinsicNamedElement", 4:"IntrinsicIndexedElement", 8:"ClassElement", 16:"UnknownElement" };
 var TDiagnosticCategory = [ "Warning", "Error", "Message" ];
 var TVisibility = [ "vPublic", "vProtected", "vPrivate" ];
-var TCustomExpression = {
-   $ClassName:"TCustomExpression",$Parent:TObject
+var TCustomDeclaration = {
+   $ClassName:"TCustomDeclaration",$Parent:TObject
    ,$Init:function ($) {
       TObject.$Init($);
       $.FOwner = null;
@@ -739,28 +1253,33 @@ var TCustomExpression = {
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
 var TCustomType = {
-   $ClassName:"TCustomType",$Parent:TCustomExpression
+   $ClassName:"TCustomType",$Parent:TCustomDeclaration
    ,$Init:function ($) {
-      TCustomExpression.$Init($);
-      $.IsArray = false;
+      TCustomDeclaration.$Init($);
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomDeclaration.GetAsCode
+};
+var TCustomNamedType = {
+   $ClassName:"TCustomNamedType",$Parent:TCustomType
+   ,$Init:function ($) {
+      TCustomType.$Init($);
    }
    ,GetAsCode:function(Self) {
       var Result = "";
-      Result = TCustomType.GetName$(Self);
-      if (Self.IsArray) {
-         Result = "array of "+Result;
-      }
+      Result = TCustomNamedType.GetName$(Self);
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
    ,GetName$:function($){return $.ClassType.GetName($)}
 };
 var TVariantType = {
-   $ClassName:"TVariantType",$Parent:TCustomType
+   $ClassName:"TVariantType",$Parent:TCustomNamedType
    ,$Init:function ($) {
-      TCustomType.$Init($);
+      TCustomNamedType.$Init($);
    }
    ,GetName:function(Self) {
       var Result = "";
@@ -768,78 +1287,123 @@ var TVariantType = {
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
-   ,GetAsCode:TCustomType.GetAsCode
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomNamedType.GetAsCode
    ,GetName$:function($){return $.ClassType.GetName($)}
 };
-var TNamedExpression = {
-   $ClassName:"TNamedExpression",$Parent:TCustomExpression
+var TNamedDeclaration = {
+   $ClassName:"TNamedDeclaration",$Parent:TCustomDeclaration
    ,$Init:function ($) {
-      TCustomExpression.$Init($);
+      TCustomDeclaration.$Init($);
       $.Name = "";
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
-   ,GetAsCode:TCustomExpression.GetAsCode
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomDeclaration.GetAsCode
 };
-var TVariableExpression = {
-   $ClassName:"TVariableExpression",$Parent:TNamedExpression
+var TVariableDeclaration = {
+   $ClassName:"TVariableDeclaration",$Parent:TNamedDeclaration
    ,$Init:function ($) {
-      TNamedExpression.$Init($);
+      TNamedDeclaration.$Init($);
+      $.Type = null;
    }
    ,GetAsCode:function(Self) {
       var Result = "";
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
-var TStructureExpression = {
-   $ClassName:"TStructureExpression",$Parent:TNamedExpression
+var TUnionType = {
+   $ClassName:"TUnionType",$Parent:TCustomType
    ,$Init:function ($) {
-      TNamedExpression.$Init($);
-      $.Members = [];
-      $.Implements = [];
-      $.Extends = [];
+      TCustomType.$Init($);
+      $.Types = [];
    }
    ,GetAsCode:function(Self) {
       var Result = "";
-      var a$84 = 0;
-      var Extend = "",
-         a$85 = 0;
-      var Member$1 = null;
-      var a$86 = [],
-          a$87 = [];
-      Result = TCustomExpression.GetIndentionString(Self.ClassType);
-      Result+="J"+Self.Name+" = class external '"+Self.Name+"'";
-      a$87 = Self.Extends;
-      var $temp4;
-      for(a$84=0,$temp4=a$87.length;a$84<$temp4;a$84++) {
-         Extend = a$87[a$84];
-         Result+=" \/\/ extends "+Extend;
-      }
-      Result+="\r\n";
-      TCustomExpression.BeginIndention(Self.ClassType);
-      a$86 = Self.Members;
+      var a$131 = 0;
+      var SubType = null;
+      var a$132 = [];
+      Result = "Variant {";
+      a$132 = Self.Types;
       var $temp5;
-      for(a$85=0,$temp5=a$86.length;a$85<$temp5;a$85++) {
-         Member$1 = a$86[a$85];
-         Result+=TCustomExpression.GetAsCode$(Member$1);
+      for(a$131=0,$temp5=a$132.length;a$131<$temp5;a$131++) {
+         SubType = a$132[a$131];
+         Result+=TCustomDeclaration.GetAsCode$(SubType);
       }
-      TCustomExpression.EndIndention(Self.ClassType);
-      Result+=TCustomExpression.GetIndentionString(Self.ClassType)+"end;";
-      Result+="\r\n"+"\r\n";
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TTypeReference = {
+   $ClassName:"TTypeReference",$Parent:TCustomDeclaration
+   ,$Init:function ($) {
+      TCustomDeclaration.$Init($);
+      $.Name = "";
+      $.Arguments = [];
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TTypeParameter = {
+   $ClassName:"TTypeParameter",$Parent:TCustomDeclaration
+   ,$Init:function ($) {
+      TCustomDeclaration.$Init($);
+      $.Name = "";
+      $.ExtendsType = null;
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TTypeOfType = {
+   $ClassName:"TTypeOfType",$Parent:TCustomNamedType
+   ,$Init:function ($) {
+      TCustomNamedType.$Init($);
+      $.Type = null;
+   }
+   ,GetName:function(Self) {
+      var Result = "";
+      Result = "type of";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomNamedType.GetAsCode
+   ,GetName$:function($){return $.ClassType.GetName($)}
+};
+var TTypeArgument = {
+   $ClassName:"TTypeArgument",$Parent:TCustomDeclaration
+   ,$Init:function ($) {
+      TCustomDeclaration.$Init($);
+      $.Name = "";
+      $.Type = null;
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
 var TStringType = {
-   $ClassName:"TStringType",$Parent:TCustomType
+   $ClassName:"TStringType",$Parent:TCustomNamedType
    ,$Init:function ($) {
-      TCustomType.$Init($);
+      TCustomNamedType.$Init($);
    }
    ,GetName:function(Self) {
       var Result = "";
@@ -847,35 +1411,63 @@ var TStringType = {
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
-   ,GetAsCode:TCustomType.GetAsCode
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomNamedType.GetAsCode
    ,GetName$:function($){return $.ClassType.GetName($)}
+};
+var TParameter = {
+   $ClassName:"TParameter",$Parent:TObject
+   ,$Init:function ($) {
+      TObject.$Init($);
+      $.DefaultValue = $.BindingIdentifier = "";
+      $.IsRest = $.IsOptional = false;
+      $.Type = null;
+      $.AccessibilityModifier = 0;
+   }
+   ,Destroy:TObject.Destroy
 };
 var TObjectType = {
    $ClassName:"TObjectType",$Parent:TCustomType
    ,$Init:function ($) {
       TCustomType.$Init($);
-   }
-   ,GetName:function(Self) {
-      var Result = "";
-      Result = "record";
-      return Result
+      $.Members = [];
    }
    ,GetAsCode:function(Self) {
       var Result = "";
-      Result = "{ object definition placeholder }";
+      var a$133 = 0;
+      var Member$2 = null;
+      var a$134 = [];
+      TCustomDeclaration.BeginIndention(Self.ClassType);
+      a$134 = Self.Members;
+      var $temp6;
+      for(a$133=0,$temp6=a$134.length;a$133<$temp6;a$133++) {
+         Member$2 = a$134[a$133];
+         Result+=TCustomDeclaration.GetAsCode$(Member$2);
+      }
+      TCustomDeclaration.EndIndention(Self.ClassType);
+      Result+=TCustomDeclaration.GetIndentionString(Self.ClassType)+"end;";
+      Result+="\r\n"+"\r\n";
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
-   ,GetName$:function($){return $.ClassType.GetName($)}
+};
+var TNamespaceDeclaration = {
+   $ClassName:"TNamespaceDeclaration",$Parent:TNamedDeclaration
+   ,$Init:function ($) {
+      TNamedDeclaration.$Init($);
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomDeclaration.GetAsCode
 };
 var TNamedType = {
-   $ClassName:"TNamedType",$Parent:TCustomType
+   $ClassName:"TNamedType",$Parent:TCustomNamedType
    ,$Init:function ($) {
-      TCustomType.$Init($);
+      TCustomNamedType.$Init($);
       $.FName = "";
+      $.Arguments = [];
    }
    ,GetName:function(Self) {
       var Result = "";
@@ -883,134 +1475,160 @@ var TNamedType = {
       return Result
    }
    ,Create$5:function(Self, Owner$1, AName) {
-      TCustomExpression.Create$4(Self,Owner$1);
+      TCustomDeclaration.Create$4(Self,Owner$1);
       Self.FName = AName;
       return Self
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
-   ,GetAsCode:TCustomType.GetAsCode
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomNamedType.GetAsCode
    ,GetName$:function($){return $.ClassType.GetName($)}
 };
-var TModuleExpression = {
-   $ClassName:"TModuleExpression",$Parent:TNamedExpression
+var TModuleDeclaration = {
+   $ClassName:"TModuleDeclaration",$Parent:TNamedDeclaration
    ,$Init:function ($) {
-      TNamedExpression.$Init($);
+      TNamedDeclaration.$Init($);
+      $.Modules = [];
       $.Variables = [];
+      $.Exports = [];
+      $.Functions = [];
       $.Interfaces = [];
       $.Classes = [];
    }
    ,GetAsCode:function(Self) {
       var Result = "";
-      var a$88 = 0;
+      var a$135 = 0;
       var Class = null,
-         a$89 = 0;
+         a$136 = 0;
       var Interface$1 = null,
-         a$90 = 0;
+         a$137 = 0;
       var Variable = null;
       if (Self.Classes.length>0) {
-         var a$91 = [];
+         var a$138 = [];
          Result+="type"+"\r\n";
-         TCustomExpression.BeginIndention(Self.ClassType);
-         a$91 = Self.Classes;
-         var $temp6;
-         for(a$88=0,$temp6=a$91.length;a$88<$temp6;a$88++) {
-            Class = a$91[a$88];
-            Result = Result+TCustomExpression.GetAsCode$(Class);
+         TCustomDeclaration.BeginIndention(Self.ClassType);
+         a$138 = Self.Classes;
+         var $temp7;
+         for(a$135=0,$temp7=a$138.length;a$135<$temp7;a$135++) {
+            Class = a$138[a$135];
+            Result = Result+TCustomDeclaration.GetAsCode$(Class);
          }
-         TCustomExpression.EndIndention(Self.ClassType);
+         TCustomDeclaration.EndIndention(Self.ClassType);
       }
       if (Self.Interfaces.length>0) {
-         var a$92 = [];
+         var a$139 = [];
          Result+="type"+"\r\n";
-         TCustomExpression.BeginIndention(Self.ClassType);
-         a$92 = Self.Interfaces;
-         var $temp7;
-         for(a$89=0,$temp7=a$92.length;a$89<$temp7;a$89++) {
-            Interface$1 = a$92[a$89];
-            Result = Result+TCustomExpression.GetAsCode$(Interface$1);
+         TCustomDeclaration.BeginIndention(Self.ClassType);
+         a$139 = Self.Interfaces;
+         var $temp8;
+         for(a$136=0,$temp8=a$139.length;a$136<$temp8;a$136++) {
+            Interface$1 = a$139[a$136];
+            Result = Result+TCustomDeclaration.GetAsCode$(Interface$1);
          }
-         TCustomExpression.EndIndention(Self.ClassType);
+         TCustomDeclaration.EndIndention(Self.ClassType);
       }
       if (Self.Variables.length>0) {
-         var a$93 = [];
+         var a$140 = [];
          Result+="var"+"\r\n";
-         TCustomExpression.BeginIndention(Self.ClassType);
-         a$93 = Self.Variables;
-         var $temp8;
-         for(a$90=0,$temp8=a$93.length;a$90<$temp8;a$90++) {
-            Variable = a$93[a$90];
-            Result = Result+TCustomExpression.GetAsCode$(Variable);
+         TCustomDeclaration.BeginIndention(Self.ClassType);
+         a$140 = Self.Variables;
+         var $temp9;
+         for(a$137=0,$temp9=a$140.length;a$137<$temp9;a$137++) {
+            Variable = a$140[a$137];
+            Result = Result+TCustomDeclaration.GetAsCode$(Variable);
          }
-         TCustomExpression.EndIndention(Self.ClassType);
+         TCustomDeclaration.EndIndention(Self.ClassType);
       }
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
-var TCustomStructureMember = {
-   $ClassName:"TCustomStructureMember",$Parent:TNamedExpression
+var TCustomTypeMember = {
+   $ClassName:"TCustomTypeMember",$Parent:TNamedDeclaration
    ,$Init:function ($) {
-      TNamedExpression.$Init($);
+      TNamedDeclaration.$Init($);
       $.Visibility = 0;
       $.IsStatic = false;
    }
    ,Create$4:function(Self, Owner$2) {
-      TCustomExpression.Create$4(Self,Owner$2);
+      TCustomDeclaration.Create$4(Self,Owner$2);
       Self.Visibility = 0;
       return Self
    }
    ,Destroy:TObject.Destroy
    ,Create$4$:function($){return $.ClassType.Create$4.apply($.ClassType, arguments)}
-   ,GetAsCode:TCustomExpression.GetAsCode
+   ,GetAsCode:TCustomDeclaration.GetAsCode
 };
-var TMethodExpression = {
-   $ClassName:"TMethodExpression",$Parent:TCustomStructureMember
+var TMethodDeclaration = {
+   $ClassName:"TMethodDeclaration",$Parent:TCustomTypeMember
    ,$Init:function ($) {
-      TCustomStructureMember.$Init($);
+      TCustomTypeMember.$Init($);
       $.Type = null;
    }
    ,GetAsCode:function(Self) {
       var Result = "";
-      Result = TCustomExpression.GetIndentionString(Self.ClassType)+"function "+Self.Name;
+      Result = TCustomDeclaration.GetIndentionString(Self.ClassType)+"function "+Self.Name;
       if (Self.Type) {
-         Result+=TCustomExpression.GetAsCode$(Self.Type);
+         Result+=TCustomDeclaration.GetAsCode$(Self.Type);
       }
       Result+=";"+"\r\n";
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomStructureMember.Create$4
+   ,Create$4:TCustomTypeMember.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
-var TInterfaceExpression = {
-   $ClassName:"TInterfaceExpression",$Parent:TStructureExpression
+var TInterfaceDeclaration = {
+   $ClassName:"TInterfaceDeclaration",$Parent:TCustomDeclaration
    ,$Init:function ($) {
-      TStructureExpression.$Init($);
-   }
-   ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
-   ,GetAsCode:TStructureExpression.GetAsCode
-};
-var TImportExpression = {
-   $ClassName:"TImportExpression",$Parent:TNamedExpression
-   ,$Init:function ($) {
-      TNamedExpression.$Init($);
+      TCustomDeclaration.$Init($);
+      $.Members = [];
+      $.Name = "";
+      $.Extends = [];
+      $.Type = null;
    }
    ,GetAsCode:function(Self) {
       var Result = "";
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TIndexDeclaration = {
+   $ClassName:"TIndexDeclaration",$Parent:TCustomTypeMember
+   ,$Init:function ($) {
+      TCustomTypeMember.$Init($);
+      $.IsStringIndex = false;
+      $.Type = null;
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomTypeMember.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TImportDeclaration = {
+   $ClassName:"TImportDeclaration",$Parent:TNamedDeclaration
+   ,$Init:function ($) {
+      TNamedDeclaration.$Init($);
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
 var TFunctionType = {
-   $ClassName:"TFunctionType",$Parent:TCustomType
+   $ClassName:"TFunctionType",$Parent:TCustomNamedType
    ,$Init:function ($) {
-      TCustomType.$Init($);
+      TCustomNamedType.$Init($);
       $.ResultType = null;
       $.Parameters = [];
    }
@@ -1018,15 +1636,15 @@ var TFunctionType = {
       var Result = "";
       var Index = 0;
       if (Self.Parameters.length>0) {
-         Result = "("+TCustomExpression.GetAsCode$(Self.Parameters[0]);
-         var $temp9;
-         for(Index=0+1,$temp9=Self.Parameters.length;Index<$temp9;Index++) {
-            Result+="; "+TCustomExpression.GetAsCode$(Self.Parameters[Index]);
+         Result = "("+TCustomDeclaration.GetAsCode$(Self.Parameters[0]);
+         var $temp10;
+         for(Index=0+1,$temp10=Self.Parameters.length;Index<$temp10;Index++) {
+            Result+="; "+TCustomDeclaration.GetAsCode$(Self.Parameters[Index]);
          }
          Result+=")";
       }
       if (Self.ResultType) {
-         Result+=": "+TCustomExpression.GetAsCode$(Self.ResultType);
+         Result+=": "+TCustomDeclaration.GetAsCode$(Self.ResultType);
       }
       return Result
    }
@@ -1036,14 +1654,14 @@ var TFunctionType = {
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
    ,GetName$:function($){return $.ClassType.GetName($)}
 };
 var TFunctionParameter = {
-   $ClassName:"TFunctionParameter",$Parent:TNamedExpression
+   $ClassName:"TFunctionParameter",$Parent:TNamedDeclaration
    ,$Init:function ($) {
-      TNamedExpression.$Init($);
+      TNamedDeclaration.$Init($);
       $.Type = null;
       $.Nullable = false;
    }
@@ -1051,35 +1669,35 @@ var TFunctionParameter = {
       var Result = "";
       Result = Self.Name+": ";
       if (Self.Type) {
-         Result+=TCustomExpression.GetAsCode$(Self.Type);
+         Result+=TCustomDeclaration.GetAsCode$(Self.Type);
       } else {
          Result+="Variant";
       }
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
-var TFunctionExpression = {
-   $ClassName:"TFunctionExpression",$Parent:TNamedExpression
+var TFunctionDeclaration = {
+   $ClassName:"TFunctionDeclaration",$Parent:TNamedDeclaration
    ,$Init:function ($) {
-      TNamedExpression.$Init($);
+      TNamedDeclaration.$Init($);
       $.Type = null;
    }
    ,GetAsCode:function(Self) {
       var Result = "";
-      Result = TCustomExpression.GetAsCode$(Self.Type);
+      Result = TCustomDeclaration.GetAsCode$(Self.Type);
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
 var TFloatType = {
-   $ClassName:"TFloatType",$Parent:TCustomType
+   $ClassName:"TFloatType",$Parent:TCustomNamedType
    ,$Init:function ($) {
-      TCustomType.$Init($);
+      TCustomNamedType.$Init($);
    }
    ,GetName:function(Self) {
       var Result = "";
@@ -1087,20 +1705,20 @@ var TFloatType = {
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
-   ,GetAsCode:TCustomType.GetAsCode
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomNamedType.GetAsCode
    ,GetName$:function($){return $.ClassType.GetName($)}
 };
-var TFieldExpression = {
-   $ClassName:"TFieldExpression",$Parent:TCustomStructureMember
+var TFieldDeclaration = {
+   $ClassName:"TFieldDeclaration",$Parent:TCustomTypeMember
    ,$Init:function ($) {
-      TCustomStructureMember.$Init($);
+      TCustomTypeMember.$Init($);
       $.Nullable = false;
       $.Type = null;
    }
    ,GetAsCode:function(Self) {
       var Result = "";
-      Result = TCustomExpression.GetIndentionString(Self.ClassType)+Self.Name+": "+TCustomExpression.GetAsCode$(Self.Type)+";";
+      Result = TCustomDeclaration.GetIndentionString(Self.ClassType)+Self.Name+": "+TCustomDeclaration.GetAsCode$(Self.Type)+";";
       if (Self.Nullable) {
          Result+=" \/\/ nullable";
       }
@@ -1108,13 +1726,28 @@ var TFieldExpression = {
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomStructureMember.Create$4
+   ,Create$4:TCustomTypeMember.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TExportDeclaration = {
+   $ClassName:"TExportDeclaration",$Parent:TNamedDeclaration
+   ,$Init:function ($) {
+      TNamedDeclaration.$Init($);
+      $.FDefault = false;
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
 var TEnumerationItem = {
-   $ClassName:"TEnumerationItem",$Parent:TCustomExpression
+   $ClassName:"TEnumerationItem",$Parent:TCustomDeclaration
    ,$Init:function ($) {
-      TCustomExpression.$Init($);
+      TCustomDeclaration.$Init($);
       $.Name = $.Value = "";
    }
    ,GetAsCode:function(Self) {
@@ -1122,13 +1755,13 @@ var TEnumerationItem = {
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
-var TEnumerationExpression = {
-   $ClassName:"TEnumerationExpression",$Parent:TNamedExpression
+var TEnumerationDeclaration = {
+   $ClassName:"TEnumerationDeclaration",$Parent:TNamedDeclaration
    ,$Init:function ($) {
-      TNamedExpression.$Init($);
+      TNamedDeclaration.$Init($);
       $.Items = [];
    }
    ,GetAsCode:function(Self) {
@@ -1136,113 +1769,105 @@ var TEnumerationExpression = {
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
-var TDefinitionExpression = {
-   $ClassName:"TDefinitionExpression",$Parent:TNamedExpression
+var TEnumDeclaration = {
+   $ClassName:"TEnumDeclaration",$Parent:TNamedDeclaration
    ,$Init:function ($) {
-      TNamedExpression.$Init($);
+      TNamedDeclaration.$Init($);
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomDeclaration.GetAsCode
+};
+var TDefinitionDeclaration = {
+   $ClassName:"TDefinitionDeclaration",$Parent:TNamedDeclaration
+   ,$Init:function ($) {
+      TNamedDeclaration.$Init($);
    }
    ,GetAsCode:function(Self) {
       var Result = "";
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomDeclaration.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
-var TDeclarationExpression = {
-   $ClassName:"TDeclarationExpression",$Parent:TNamedExpression
+var TConstructorDeclaration = {
+   $ClassName:"TConstructorDeclaration",$Parent:TCustomTypeMember
    ,$Init:function ($) {
-      TNamedExpression.$Init($);
-      $.Variables = [];
-      $.Modules = [];
-      $.Classes = [];
-      $.Functions = [];
-      $.Interfaces = [];
+      TCustomTypeMember.$Init($);
+      $.TypeParameters = "";
+      $.ParameterList = [];
+      $.Type = null;
    }
    ,GetAsCode:function(Self) {
       var Result = "";
-      var a$94 = 0;
-      var Function$2 = null,
-         a$95 = 0;
-      var Module$2 = null,
-         a$96 = 0;
-      var Class$1 = null,
-         a$97 = 0;
-      var Interface$2 = null,
-         a$98 = 0;
-      var Variable$1 = null;
-      var a$99 = [],
-          a$100 = [];
-      a$100 = Self.Functions;
-      var $temp10;
-      for(a$94=0,$temp10=a$100.length;a$94<$temp10;a$94++) {
-         Function$2 = a$100[a$94];
-         Result+=TCustomExpression.GetAsCode$(Function$2);
+      Result = TCustomDeclaration.GetIndentionString(Self.ClassType)+"constructor Create";
+      if (Self.Type) {
+         Result+=TCustomDeclaration.GetAsCode$(Self.Type);
       }
-      a$99 = Self.Modules;
-      var $temp11;
-      for(a$95=0,$temp11=a$99.length;a$95<$temp11;a$95++) {
-         Module$2 = a$99[a$95];
-         Result+=TCustomExpression.GetAsCode$(Module$2);
-      }
-      if (Self.Classes.length>0) {
-         var a$101 = [];
-         Result+="type"+"\r\n";
-         TCustomExpression.BeginIndention(Self.ClassType);
-         a$101 = Self.Classes;
-         var $temp12;
-         for(a$96=0,$temp12=a$101.length;a$96<$temp12;a$96++) {
-            Class$1 = a$101[a$96];
-            Result = Result+TCustomExpression.GetAsCode$(Class$1);
-         }
-         TCustomExpression.EndIndention(Self.ClassType);
-      }
-      if (Self.Interfaces.length>0) {
-         var a$102 = [];
-         Result+="type"+"\r\n";
-         TCustomExpression.BeginIndention(Self.ClassType);
-         a$102 = Self.Interfaces;
-         var $temp13;
-         for(a$97=0,$temp13=a$102.length;a$97<$temp13;a$97++) {
-            Interface$2 = a$102[a$97];
-            Result = Result+TCustomExpression.GetAsCode$(Interface$2);
-         }
-         TCustomExpression.EndIndention(Self.ClassType);
-      }
-      if (Self.Variables.length>0) {
-         var a$103 = [];
-         Result+="var"+"\r\n";
-         TCustomExpression.BeginIndention(Self.ClassType);
-         a$103 = Self.Variables;
-         var $temp14;
-         for(a$98=0,$temp14=a$103.length;a$98<$temp14;a$98++) {
-            Variable$1 = a$103[a$98];
-            Result = Result+TCustomExpression.GetAsCode$(Variable$1);
-         }
-         TCustomExpression.EndIndention(Self.ClassType);
-      }
+      Result+=";"+"\r\n";
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
+   ,Create$4:TCustomTypeMember.Create$4
    ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
-var TClassExpression = {
-   $ClassName:"TClassExpression",$Parent:TStructureExpression
+var TClassDeclaration = {
+   $ClassName:"TClassDeclaration",$Parent:TInterfaceDeclaration
    ,$Init:function ($) {
-      TStructureExpression.$Init($);
+      TInterfaceDeclaration.$Init($);
+      $.Implements = [];
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
-   ,GetAsCode:TStructureExpression.GetAsCode
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TCallSignature = {
+   $ClassName:"TCallSignature",$Parent:TCustomDeclaration
+   ,$Init:function ($) {
+      TCustomDeclaration.$Init($);
+      $.TypeParameters = "";
+      $.ParameterList = [];
+      $.Type = null;
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TCallbackDeclaration = {
+   $ClassName:"TCallbackDeclaration",$Parent:TCustomTypeMember
+   ,$Init:function ($) {
+      TCustomTypeMember.$Init($);
+      $.Type = null;
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      Result = TCustomDeclaration.GetIndentionString(Self.ClassType)+"callback "+Self.Name;
+      if (Self.Type) {
+         Result+=TCustomDeclaration.GetAsCode$(Self.Type);
+      }
+      Result+=";"+"\r\n";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomTypeMember.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
 };
 var TBooleanType = {
-   $ClassName:"TBooleanType",$Parent:TCustomType
+   $ClassName:"TBooleanType",$Parent:TCustomNamedType
    ,$Init:function ($) {
-      TCustomType.$Init($);
+      TCustomNamedType.$Init($);
    }
    ,GetName:function(Self) {
       var Result = "";
@@ -1250,11 +1875,178 @@ var TBooleanType = {
       return Result
    }
    ,Destroy:TObject.Destroy
-   ,Create$4:TCustomExpression.Create$4
-   ,GetAsCode:TCustomType.GetAsCode
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TCustomNamedType.GetAsCode
    ,GetName$:function($){return $.ClassType.GetName($)}
 };
+var TArrayType = {
+   $ClassName:"TArrayType",$Parent:TCustomType
+   ,$Init:function ($) {
+      TCustomType.$Init($);
+      $.Type = null;
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      Result = "array of "+TCustomDeclaration.GetAsCode$(Self.Type);
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TAmbientVariableDeclaration = {
+   $ClassName:"TAmbientVariableDeclaration",$Parent:TCustomDeclaration
+   ,$Init:function ($) {
+      TCustomDeclaration.$Init($);
+      $.IsConst = false;
+      $.AmbientBindingList = [];
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      var a$141 = 0;
+      var AmbientBinding = null;
+      var a$142 = [];
+      Result = (Self.IsConst)?"const ":"var ";
+      a$142 = Self.AmbientBindingList;
+      var $temp11;
+      for(a$141=0,$temp11=a$142.length;a$141<$temp11;a$141++) {
+         AmbientBinding = a$142[a$141];
+         Result+=TCustomDeclaration.GetAsCode$(AmbientBinding);
+      }
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TAmbientModuleDeclaration = {
+   $ClassName:"TAmbientModuleDeclaration",$Parent:TCustomDeclaration
+   ,$Init:function ($) {
+      TCustomDeclaration.$Init($);
+      $.Interfaces = [];
+      $.Modules = [];
+      $.Classes = [];
+      $.Functions = [];
+      $.Variables = [];
+      $.IdentifierPath = "";
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TAmbientFunctionDeclaration = {
+   $ClassName:"TAmbientFunctionDeclaration",$Parent:TCustomDeclaration
+   ,$Init:function ($) {
+      TCustomDeclaration.$Init($);
+      $.BindingIdentifier = "";
+      $.CallSignature = null;
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TAmbientDeclaration = {
+   $ClassName:"TAmbientDeclaration",$Parent:TNamedDeclaration
+   ,$Init:function ($) {
+      TNamedDeclaration.$Init($);
+      $.Variables = [];
+      $.Namespaces = [];
+      $.Modules = [];
+      $.Classes = [];
+      $.Functions = [];
+      $.Enums = [];
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      var a$143 = 0;
+      var Function$2 = null,
+         a$144 = 0;
+      var Module$2 = null,
+         a$145 = 0;
+      var Class$1 = null,
+         a$146 = 0;
+      var Variable$1 = null;
+      var a$147 = [],
+          a$148 = [];
+      a$148 = Self.Functions;
+      var $temp12;
+      for(a$143=0,$temp12=a$148.length;a$143<$temp12;a$143++) {
+         Function$2 = a$148[a$143];
+         Result+=TCustomDeclaration.GetAsCode$(Function$2);
+      }
+      a$147 = Self.Modules;
+      var $temp13;
+      for(a$144=0,$temp13=a$147.length;a$144<$temp13;a$144++) {
+         Module$2 = a$147[a$144];
+         Result+=TCustomDeclaration.GetAsCode$(Module$2);
+      }
+      if (Self.Classes.length>0) {
+         var a$149 = [];
+         Result+="type"+"\r\n";
+         TCustomDeclaration.BeginIndention(Self.ClassType);
+         a$149 = Self.Classes;
+         var $temp14;
+         for(a$145=0,$temp14=a$149.length;a$145<$temp14;a$145++) {
+            Class$1 = a$149[a$145];
+            Result = Result+TCustomDeclaration.GetAsCode$(Class$1);
+         }
+         TCustomDeclaration.EndIndention(Self.ClassType);
+      }
+      if (Self.Variables.length>0) {
+         var a$150 = [];
+         Result+="var"+"\r\n";
+         TCustomDeclaration.BeginIndention(Self.ClassType);
+         a$150 = Self.Variables;
+         var $temp15;
+         for(a$146=0,$temp15=a$150.length;a$146<$temp15;a$146++) {
+            Variable$1 = a$150[a$146];
+            Result = Result+TCustomDeclaration.GetAsCode$(Variable$1);
+         }
+         TCustomDeclaration.EndIndention(Self.ClassType);
+      }
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TAmbientClassDeclaration = {
+   $ClassName:"TAmbientClassDeclaration",$Parent:TClassDeclaration
+   ,$Init:function ($) {
+      TClassDeclaration.$Init($);
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode:TClassDeclaration.GetAsCode
+};
+var TAmbientBinding = {
+   $ClassName:"TAmbientBinding",$Parent:TCustomDeclaration
+   ,$Init:function ($) {
+      TCustomDeclaration.$Init($);
+      $.BindingIdentifier = "";
+      $.Type = null;
+   }
+   ,GetAsCode:function(Self) {
+      var Result = "";
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+   ,Create$4:TCustomDeclaration.Create$4
+   ,GetAsCode$:function($){return $.ClassType.GetAsCode($)}
+};
+var TAccessibilityModifier = [ "amPublic", "amPrivate", "amProtected" ];
 function ConvertFile(InputFile, OutputFile) {
+   if (InputFile==(InputFile).split(".")[0]) {
+      InputFile+=".d.ts";
+   }
    FileSystem.readFile(InputFile,function (err, data) {
       var InputText = "",
          Translator = null,
@@ -1268,11 +2060,10 @@ function ConvertFile(InputFile, OutputFile) {
       Translator = null;
    });
 };
-var TypeScriptExport = null;
+
 var TypeScriptExport = require("typescript");
 var IndentionLevel = 0;
-var FileSystem = null;
-FileSystem = fs();
+var FileSystem = fs();
 
 var userArgs = process.argv.slice(2);
 if (userArgs.length == 0) {

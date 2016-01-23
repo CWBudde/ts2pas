@@ -1,48 +1,36 @@
 uses
-  NodeJS.Core, NodeJS.FS, ts2pas.Translator;
+  NodeJS.Core, ts2pas.Main;
                                           
-var FileSystem := fs;
+var userArgs := Process.argv;
+userArgs.Delete(0, 2);
 
-procedure ConvertFile(InputFile, OutputFile: String); overload;
+if userArgs.Length = 0 then
 begin
-  FileSystem.readFile(InputFile, lambda(err: Variant; data: JNodeBuffer)
-    var InputText := data.toString('utf8');
-
-    Console.Log('Converting file ' + InputFile);
-
-    var Translator := TTranslator.Create;
-    Translator.Name := InputFile.Split('.')[0];
-    var OutputText := Translator.Translate(InputText);
-
-    FileSystem.writeFile(OutputFile, OutputText, lambda(err: Variant)
-      end);
-
-    Console.Log('Done!');
-    Console.Log('');
-
-    Translator := nil;
-  end);
+  asm
+    return "Usage: ts2pas inputfile [outputfile]";
+  end;
 end;
 
-procedure ConvertFile(InputFile: String); overload;
-begin
-  ConvertFile(InputFile, InputFile.Split('.')[0] + '.pas');
-end;
+var InputFile := userArgs[0];
+var OutputFile := userArgs[0]+'.pas';
+if userArgs.length = 2 then
+  OutputFile := userArgs[1];
 
+ConvertFile(inputFile, outputfile);
 
 (*
-ConvertFile('TypeScriptDefs\abs.d.ts');
-ConvertFile('TypeScriptDefs\absolute.d.ts');
-ConvertFile('TypeScriptDefs\accounting.d.ts');
-ConvertFile('TypeScriptDefs\acc-wizard.d.ts');
-ConvertFile('TypeScriptDefs\AmCharts.d.ts');
-ConvertFile('TypeScriptDefs\amplifyjs.d.ts');
-ConvertFile('TypeScriptDefs\amazon-product-api.d.ts');
+ConvertFile('TypeScriptDefs\abs');
+ConvertFile('TypeScriptDefs\absolute');
+ConvertFile('TypeScriptDefs\accounting');
+ConvertFile('TypeScriptDefs\acc-wizard');
+ConvertFile('TypeScriptDefs\AmCharts');
+ConvertFile('TypeScriptDefs\amplifyjs');
+ConvertFile('TypeScriptDefs\amazon-product-api');
+ConvertFile('TypeScriptDefs\dijit');
 *)
-ConvertFile('TypeScriptDefs\dijit.d.ts');
-//ConvertFile('TypeScriptDefs\ExtJS.d.ts');
-//ConvertFile('TypeScriptDefs\node.d.ts');
-// ConvertFile('TypeScriptDefs\flot.d.ts');
-// ConvertFile('TypeScriptDefs\box2dweb.d.ts');
-//ConvertFile('TypeScriptDefs\angular.d.ts');
-//ConvertFile('TypeScriptDefs\typescript.d.ts');
+//ConvertFile('TypeScriptDefs\ExtJS');
+//ConvertFile('TypeScriptDefs\node');
+// ConvertFile('TypeScriptDefs\flot');
+// ConvertFile('TypeScriptDefs\box2dweb');
+//ConvertFile('TypeScriptDefs\angular');
+//ConvertFile('TypeScriptDefs\typescript');
