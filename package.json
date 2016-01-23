@@ -1,13 +1,12 @@
 {
   "name": "ts2pas",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A tool to convert TypeScript definition files to DWScript based Object Pascal headers",
   "main": "ts2pas.js",
   "dependencies": {
     "typescript": "^1.7.5"
   },
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -29,6 +28,6 @@
   "homepage": "https://github.com/cwbudde/ts2pas#readme",
   "preferGlobal": true,
   "bin": {
-    "ts2pas" : "ts2pas.js"
+    "ts2pas": "ts2pas.js"
   }
 }
