@@ -2,7 +2,7 @@
   <Project version="2" subversion="0">
     <Name>ts2pas</Name>
     <Created>T00:00:00.000</Created>
-    <Modified>2016-01-23T23:59:12.455</Modified>
+    <Modified>2016-01-24T00:02:19.799</Modified>
     <Author>Christian-W. Budde</Author>
     <Description>TypeScript to Object Pascal translator</Description>
     <Keywords>TypeScript, Object Pascal</Keywords>
@@ -116,9 +116,9 @@
     <Generator>Node.js Project</Generator>
     <Statistics>
       <BackgroundCompilations>13687</BackgroundCompilations>
-      <EditTime>06:42:12.067</EditTime>
-      <CompileTime>00:18:40.924</CompileTime>
-      <TotalTime>05:11:08.637</TotalTime>
+      <EditTime>06:42:14.091</EditTime>
+      <CompileTime>00:18:41.985</CompileTime>
+      <TotalTime>05:14:15.941</TotalTime>
       <DesigningTime>00:00:00.000</DesigningTime>
       <RunningTime>00:00:00.000</RunningTime>
     </Statistics>
