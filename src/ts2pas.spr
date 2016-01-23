@@ -4,11 +4,8 @@ uses
 var userArgs := Process.argv;
 userArgs.Delete(0, 2);
 
-if userArgs.Length = 0 then
-begin
-  asm
-    return "Usage: ts2pas inputfile [outputfile]";
-  end;
+if userArgs.Length = 0 then asm
+  return "Usage: ts2pas inputfile [outputfile]";
 end;
 
 var InputFile := userArgs[0];
@@ -17,20 +14,3 @@ if userArgs.length = 2 then
   OutputFile := userArgs[1];
 
 ConvertFile(inputFile, outputfile);
-
-(*
-ConvertFile('TypeScriptDefs\abs');
-ConvertFile('TypeScriptDefs\absolute');
-ConvertFile('TypeScriptDefs\accounting');
-ConvertFile('TypeScriptDefs\acc-wizard');
-ConvertFile('TypeScriptDefs\AmCharts');
-ConvertFile('TypeScriptDefs\amplifyjs');
-ConvertFile('TypeScriptDefs\amazon-product-api');
-ConvertFile('TypeScriptDefs\dijit');
-*)
-//ConvertFile('TypeScriptDefs\ExtJS');
-//ConvertFile('TypeScriptDefs\node');
-// ConvertFile('TypeScriptDefs\flot');
-// ConvertFile('TypeScriptDefs\box2dweb');
-//ConvertFile('TypeScriptDefs\angular');
-//ConvertFile('TypeScriptDefs\typescript');

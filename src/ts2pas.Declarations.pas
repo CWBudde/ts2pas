@@ -65,22 +65,27 @@ type
     property &Type: TCustomType;
   end;
 
-  TVariantType = class(TCustomNamedType)
+  TPredefinedType = class(TCustomNamedType)
+  protected
+    function GetAsCode: String; override;
+  end;
+
+  TVariantType = class(TPredefinedType)
   protected
     function GetName: String; override;
   end;
 
-  TFloatType = class(TCustomNamedType)
+  TFloatType = class(TPredefinedType)
   protected
     function GetName: String; override;
   end;
 
-  TStringType = class(TCustomNamedType)
+  TStringType = class(TPredefinedType)
   protected
     function GetName: String; override;
   end;
 
-  TBooleanType = class(TCustomNamedType)
+  TBooleanType = class(TPredefinedType)
   protected
     function GetName: String; override;
   end;
@@ -190,9 +195,11 @@ type
     amProtected
   );
 
-  TParameter = class
+  TParameter = class(TNamedDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
     property AccessibilityModifier: TAccessibilityModifier;
-    property BindingIdentifier: String;
     property &Type: TCustomType;
     property IsOptional: Boolean;
     property IsRest: Boolean;
@@ -253,7 +260,6 @@ type
     property Name: String;
     property Extends: array of TTypeReference;
     property &Type: TObjectType;
-    property Members: array of TCustomTypeMember;
   end;
 
   TClassDeclaration = class(TInterfaceDeclaration)
@@ -261,6 +267,7 @@ type
     function GetAsCode: String; override;
   public
     property Implements: array of String;
+    property Members: array of TCustomTypeMember;
   end;
 
   TImportDeclaration = class(TNamedDeclaration)
@@ -281,11 +288,10 @@ type
 
 
 
-  TAmbientBinding  = class(TCustomDeclaration)
+  TAmbientBinding  = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
-    property BindingIdentifier: String;
     property &Type: TCustomType;
   end;
 
@@ -297,11 +303,10 @@ type
     property AmbientBindingList: array of TAmbientBinding;
   end;
 
-  TAmbientFunctionDeclaration = class(TCustomDeclaration)
+  TAmbientFunctionDeclaration = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
-    property BindingIdentifier: String;
     property CallSignature: TCallSignature;
   end;
 
@@ -370,6 +375,21 @@ uses
   NodeJS.Core;
 
 
+function Escape(Name: String): String;
+begin
+  case LowerCase(Name) of
+    'type':
+      Result := '&type';
+    'export':
+      Result := '&export';
+    'label':
+      Result := '&label';
+    else
+      Result := Name;
+  end;
+end;
+
+
 { TCustomDeclaration }
 
 constructor TCustomDeclaration.Create(Owner: IDeclarationOwner);
@@ -417,7 +437,15 @@ end;
 
 function TCustomNamedType.GetAsCode: String;
 begin
-  Result := Name;
+(*
+  case LowerCase(Name) of
+    'date':
+      Result := 'JDate';
+    else
+      Result := Escape(Name);
+  end;
+*)
+  Result := 'J' + Name;
 end;
 
 
@@ -426,6 +454,14 @@ end;
 function TTypeOfType.GetName: String;
 begin
   Result := 'type of';
+end;
+
+
+{ TPredefinedType }
+
+function TPredefinedType.GetAsCode: String;
+begin
+  Result := Name;
 end;
 
 
@@ -457,7 +493,7 @@ end;
 
 function TStringType.GetName: String;
 begin
-  Result := 'Boolean';
+  Result := 'String';
 end;
 
 
@@ -526,13 +562,8 @@ begin
   end;
 
   if Variables.Count > 0 then
-  begin
-    Result += 'var' + CRLF;
-    BeginIndention;
     for var Variable in Variables do
       Result := Result + Variable.AsCode;
-    EndIndention;
-  end;
 end;
 
 
@@ -540,7 +571,7 @@ end;
 
 function TDefinitionDeclaration.GetAsCode: String;
 begin
-
+  Console.Log('not implemented: TDefinitionDeclaration.GetAsCode');
 end;
 
 
@@ -548,7 +579,7 @@ end;
 
 function TEnumerationItem.GetAsCode: String;
 begin
-
+  Console.Log('not implemented: TEnumerationItem.GetAsCode');
 end;
 
 
@@ -556,7 +587,7 @@ end;
 
 function TEnumerationDeclaration.GetAsCode: String;
 begin
-
+  Console.Log('not implemented: TEnumerationDeclaration.GetAsCode');
 end;
 
 
@@ -572,7 +603,7 @@ end;
 
 function TFieldDeclaration.GetAsCode: String;
 begin
-  Result := GetIndentionString + Name + ': ' + &Type.AsCode + ';';
+  Result := GetIndentionString + Escape(Name) + ': ' + &Type.AsCode + ';';
   if Nullable then
     Result += ' // nullable';
 
@@ -599,7 +630,7 @@ end;
 
 function TIndexDeclaration.GetAsCode: String;
 begin
-
+  Console.Log('not implemented: TIndexDeclaration.GetAsCode');
 end;
 
 
@@ -635,7 +666,7 @@ end;
 
 function TFunctionParameter.GetAsCode: String;
 begin
-  Result := Name + ': ';
+  Result := Escape(Name) + ': ';
   if Assigned(&Type) then
     Result += &Type.AsCode
   else
@@ -677,7 +708,7 @@ end;
 
 function TImportDeclaration.GetAsCode: String;
 begin
-
+  Console.Log('not implemented: TImportDeclaration.GetAsCode');
 end;
 
 
@@ -685,7 +716,7 @@ end;
 
 function TVariableDeclaration.GetAsCode: String;
 begin
-
+  Console.Log('not implemented: TVariableDeclaration.GetAsCode');
 end;
 
 
@@ -733,11 +764,27 @@ end;
 
 
 
+{ TParameter }
+
+function TParameter.GetAsCode: String;
+begin
+  Result := Name + ': ' + &Type.AsCode;
+  if DefaultValue <> '' then
+    Result += ' = ' + DefaultValue;
+end;
+
+
 { TCallSignature }
 
 function TCallSignature.GetAsCode: String;
 begin
+  Result := '(';
+  for var Parameter in ParameterList do
+    Result += Parameter.AsCode;
+  Result += ')';
 
+  if Assigned(&Type) then
+    Result += ': ' + &Type.AsCode;
 end;
 
 
@@ -745,7 +792,7 @@ end;
 
 function TAmbientBinding.GetAsCode: String;
 begin
-
+  Result := Name + ': ' + &Type.AsCode;
 end;
 
 
@@ -753,9 +800,11 @@ end;
 
 function TAmbientVariableDeclaration.GetAsCode: String;
 begin
-  Result := if IsConst then 'const ' else 'var ';
+  Result := if IsConst then 'const' else 'var';
+  Result += ' ';
   for var AmbientBinding in AmbientBindingList do
     Result += AmbientBinding.AsCode;
+  Result +=  ';' + CRLF;
 end;
 
 
@@ -763,7 +812,9 @@ end;
 
 function TAmbientFunctionDeclaration.GetAsCode: String;
 begin
-  //Result := &Type.AsCode;
+  Result := if Assigned(CallSignature.&Type) then 'function' else 'procedure';
+  Result += ' ' + Name + CallSignature.AsCode;
+  Result +=  ';' + CRLF;
 end;
 
 
@@ -771,7 +822,22 @@ end;
 
 function TAmbientModuleDeclaration.GetAsCode: String;
 begin
-  //Result := &Type.AsCode;
+  Result := '//' + IdentifierPath + CRLF + CRLF;
+//    property IdentifierPath: String;
+  for var Variable in Variables do
+    Result += Variable.AsCode;
+
+  for var &Function in Functions do
+    Result += &Function.AsCode;
+
+  for var &Class in Classes do
+    Result += &Class.AsCode;
+
+  for var Module in Modules do
+    Result += Module.AsCode;
+
+  for var &Interface in Interfaces do
+    Result += Module.AsCode;
 end;
 
 
@@ -779,28 +845,75 @@ end;
 
 function TClassDeclaration.GetAsCode: String;
 begin
+  Result := 'type' + CRLF;
+  BeginIndention;
+  Result += GetIndentionString + 'J' + Name + ' = class external ''' + Name + '''';
+  if Extends.Count > 0 then
+  begin
+    Result += '(';
+    Result += Extends[0].AsCode;
+    for var Index := Low(Extends) + 1 to High(Extends) do
+      Result += ', ' + Extends[Index].AsCode;
+    Result += ')';
+  end;
+  Result += CRLF;
 
+  BeginIndention;
+  for var Member in Members do
+    Result += Member.AsCode;
+  EndIndention;
+
+  Result += GetIndentionString + 'end;' + CRLF + CRLF;
+  EndIndention;
 end;
 
 { TInterfaceDeclaration }
 
 function TInterfaceDeclaration.GetAsCode: String;
 begin
+  Result := 'type' + CRLF;
+  BeginIndention;
+  Result += GetIndentionString + Name + ' = class external';
+  if Extends.Count > 0 then
+  begin
+    Result += '(';
+    Result += Extends[0].AsCode;
+    for var Index := Low(Extends) + 1 to High(Extends) do
+      Result += ', ' + Extends[Index].AsCode;
+    Result += ')';
 
+  end;
+  Result += CRLF;
+  Result += &Type.AsCode;
+  EndIndention;
 end;
 
 { TTypeParameter }
 
 function TTypeParameter.GetAsCode: String;
 begin
-
+  Console.Log('not implemented: TTypeParameter.GetAsCode');
 end;
 
 { TTypeArgument }
 
 function TTypeArgument.GetAsCode: String;
 begin
+  Console.Log('not implemented: TTypeArgument.GetAsCode');
+end;
 
+{ TTypeReference }
+
+function TTypeReference.GetAsCode: String;
+begin
+  Result := Name;
+  if Arguments.Length > 0 then
+  begin
+    Result += ' {' + Arguments[0].AsCode;
+    for var Index := Low(Arguments) + 1 to High(Arguments) do
+      Result += ', ' + Arguments[Index].AsCode;
+    Result += '} ';
+  end;
 end;
 
 end.
