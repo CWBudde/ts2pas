@@ -90,9 +90,6 @@ type
     function GetName: String; override;
   end;
 
-  TEnumDeclaration = class(TNamedDeclaration)
-  end;
-
   TFunctionParameter = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
@@ -102,6 +99,16 @@ type
   end;
 
   TFunctionType = class(TCustomNamedType)
+  protected
+    function GetName: String; override;
+    function GetAsCode: String; override;
+  public
+    property Name: String read GetName;
+    property ResultType: TCustomType;
+    property Parameters: array of TFunctionParameter;
+  end;
+
+  TConstructorType = class(TCustomNamedType)
   protected
     function GetName: String; override;
     function GetAsCode: String; override;
@@ -314,6 +321,12 @@ type
   end;
 
 
+  TTypeAlias = class(TNamedDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &Type: TCustomType;
+  end;
 
 
   TAmbientModuleDeclaration = class(TCustomDeclaration)
@@ -321,7 +334,9 @@ type
     function GetAsCode: String; override;
   public
     property IdentifierPath: String;
+    property Enums: array of TEnumerationDeclaration;
     property Variables: array of TAmbientVariableDeclaration;
+    property TypeAliases: array of TTypeAlias;
     property Functions: array of TAmbientFunctionDeclaration;
     property Classes: array of TAmbientClassDeclaration;
     property Modules: array of TAmbientModuleDeclaration;
@@ -363,7 +378,7 @@ type
   public
     property Classes: array of TClassDeclaration;
     property Functions: array of TAmbientFunctionDeclaration;
-    property Enums: array of TEnumDeclaration;
+    property Enums: array of TEnumerationDeclaration;
     property Modules: array of TAmbientModuleDeclaration;
     property Namespaces: array of TNamespaceDeclaration;
     property Variables: array of TAmbientVariableDeclaration;
@@ -519,6 +534,28 @@ begin
 end;
 
 
+{ TConstructorType }
+
+function TConstructorType.GetName: String;
+begin
+  Result := 'constructor';
+end;
+
+function TConstructorType.GetAsCode: String;
+begin
+  if Parameters.Count > 0 then
+  begin
+    Result := '(' + Parameters[0].AsCode;
+    for var Index := Low(Parameters) + 1 to High(Parameters) do
+      Result += '; ' + Parameters[Index].AsCode;
+    Result += ')';
+  end;
+
+  if Assigned(ResultType) then
+    Result += ': ' + ResultType.AsCode;
+end;
+
+
 { TNamedType }
 
 constructor TNamedType.Create(Owner: IDeclarationOwner; AName: String);
@@ -630,7 +667,10 @@ end;
 
 function TIndexDeclaration.GetAsCode: String;
 begin
-  Console.Log('not implemented: TIndexDeclaration.GetAsCode');
+  Result := GetIndentionString + '// ';
+  Result += 'property Item[' + Name + ': ';
+  Result += if IsStringIndex then 'String' else 'Integer';
+  Result += ']: ' + &Type.AsCode;
 end;
 
 
@@ -914,6 +954,11 @@ begin
       Result += ', ' + Arguments[Index].AsCode;
     Result += '} ';
   end;
+end;
+
+function TTypeAlias.GetAsCode: String;
+begin
+  Console.Log('not implemented: TTypeAlias.GetAsCode');
 end;
 
 end.
