@@ -207,6 +207,14 @@ type
     property ExtendsType: TCustomType;
   end;
 
+  TTypeReference = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Name: String;
+    property Arguments: array of TTypeArgument;
+  end;
+
   TConstructorDeclaration = class(TCustomTypeMember)
   protected
     function GetAsCode: String; override;
@@ -243,7 +251,7 @@ type
     function GetAsCode: String; override;
   public
     property Name: String;
-    property Extends: array of String;
+    property Extends: array of TTypeReference;
     property &Type: TObjectType;
     property Members: array of TCustomTypeMember;
   end;
