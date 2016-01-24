@@ -15,3 +15,4 @@ A tool to convert TypeScript definition files to DWScript based Object Pascal he
 
 * 0.1.0 Initial release
 * 0.2.0 Improved parsing significantly
+* 0.3.2 Improved parsing and code generation
