@@ -392,16 +392,11 @@ uses
 
 function Escape(Name: String): String;
 begin
-  case LowerCase(Name) of
-    'type':
-      Result := '&type';
-    'export':
-      Result := '&export';
-    'label':
-      Result := '&label';
-    else
-      Result := Name;
-  end;
+  Result := Name;
+  if LowerCase(Name) in ['type', 'export', 'label', 'public', 'protected',
+    'private', 'abstract', 'default', 'const', 'constructor', 'property',
+    'function', 'class', 'interface', 'string'] then
+    Result := '&' + Result;
 end;
 
 
@@ -441,10 +436,9 @@ end;
 function TUnionType.GetAsCode: String;
 begin
   Result := 'Variant {';
-  for var SubType in Types do
-  begin
-    Result += SubType.AsCode;
-  end;
+  for var Index := Low(Types) to High(Types) - 1 do
+    Result += Types[Index].AsCode + ' or ';
+  Result += Types[High(Types)].AsCode + '}';
 end;
 
 
@@ -616,7 +610,7 @@ end;
 
 function TEnumerationItem.GetAsCode: String;
 begin
-  Console.Log('not implemented: TEnumerationItem.GetAsCode');
+  Result := Name;
 end;
 
 
@@ -624,7 +618,31 @@ end;
 
 function TEnumerationDeclaration.GetAsCode: String;
 begin
-  Console.Log('not implemented: TEnumerationDeclaration.GetAsCode');
+  Result += GetIndentionString + 'T' + Name + ' = Variant;' + CRLF;
+  Result += GetIndentionString + 'T' + Name + 'Helper = strict helper for T' + Name + CRLF;
+  BeginIndention;
+  for var Item in Items do
+  begin
+    Result += GetIndentionString + 'const ' + Escape(Item.AsCode);
+    if Item.Value <> '' then
+    begin
+      try
+        Result += ' = ' + IntToStr(Item.Value.ToInteger) + ';' + CRLF;
+      except
+        Result += ' = ''' + Item.Value + ''';' + CRLF;
+      end;
+    end
+    else
+      Result += ' = ''' + Item.Name + ''';' + CRLF
+  end;
+(*
+  for var Index := Low(Items) to High(Items) - 1 do
+    Result +=  Items[Index].AsCode + ', ' + CRLF;
+  Result +=  Items[High(Items)].AsCode + CRLF;
+*)
+  EndIndention;
+  Result += GetIndentionString + 'end;' + CRLF;
+  Result += CRLF;
 end;
 
 
@@ -670,7 +688,7 @@ begin
   Result := GetIndentionString + '// ';
   Result += 'property Item[' + Name + ': ';
   Result += if IsStringIndex then 'String' else 'Integer';
-  Result += ']: ' + &Type.AsCode;
+  Result += ']: ' + &Type.AsCode + ';' + CRLF;
 end;
 
 
@@ -738,9 +756,6 @@ begin
     Result += Member.AsCode;
   EndIndention;
   Result += GetIndentionString + 'end;';
-
-  // line breaks
-  Result += CRLF + CRLF;
 end;
 
 
@@ -764,26 +779,18 @@ end;
 
 function TModuleDeclaration.GetAsCode: String;
 begin
-(*
-  Result := 'unit ' + Name + ';' + CRLF + CRLF;
-  Result += 'interface' + CRLF + CRLF;
-*)
-
-  if Classes.Count > 0 then
+  // classes and interfaces
+  if Classes.Count + Interfaces.Count > 0 then
   begin
     Result += 'type' + CRLF;
     BeginIndention;
+
     for var &Class in Classes do
       Result := Result + &Class.AsCode;
-    EndIndention;
-  end;
 
-  if Interfaces.Count > 0 then
-  begin
-    Result += 'type' + CRLF;
-    BeginIndention;
     for var &Interface in Interfaces do
       Result := Result + &Interface.AsCode;
+
     EndIndention;
   end;
 
@@ -840,10 +847,8 @@ end;
 
 function TAmbientVariableDeclaration.GetAsCode: String;
 begin
-  Result := if IsConst then 'const' else 'var';
-  Result += ' ';
   for var AmbientBinding in AmbientBindingList do
-    Result += AmbientBinding.AsCode;
+    Result += GetIndentionString + AmbientBinding.AsCode;
   Result +=  ';' + CRLF;
 end;
 
@@ -863,21 +868,60 @@ end;
 function TAmbientModuleDeclaration.GetAsCode: String;
 begin
   Result := '//' + IdentifierPath + CRLF + CRLF;
-//    property IdentifierPath: String;
+
+  var Constants := 0;
   for var Variable in Variables do
-    Result += Variable.AsCode;
+    if Variable.IsConst then
+      Inc(Constants);
 
-  for var &Function in Functions do
-    Result += &Function.AsCode;
+  if Constants > 0 then
+  begin
+    Result += 'const' + CRLF;
+    BeginIndention;
+    for var Variable in Variables do
+      if Variable.IsConst then
+        Result := Result + Variable.AsCode;
+    EndIndention;
+    Result += CRLF;
+  end;
 
-  for var &Class in Classes do
-    Result += &Class.AsCode;
+  if Enums.Count + Classes.Count + Interfaces.Count > 0 then
+  begin
+    Result += 'type' + CRLF;
+    BeginIndention;
+
+    for var Enum in Enums do
+      Result += Enum.AsCode;
+
+    for var &Class in Classes do
+      Result += &Class.AsCode;
+
+    for var &Interface in Interfaces do
+      Result += &Interface.AsCode;
+
+    EndIndention;
+  end;
 
   for var Module in Modules do
     Result += Module.AsCode;
 
-  for var &Interface in Interfaces do
-    Result += Module.AsCode;
+  if Functions.Count > 0 then
+  begin
+    for var &Function in Functions do
+      Result += &Function.AsCode;
+    Result += CRLF;
+  end;
+
+  if Variables.Count - Constants > 0 then
+  begin
+    Result += 'var' + CRLF;
+    BeginIndention;
+    for var Variable in Variables do
+      if not Variable.IsConst then
+        Result := Result + Variable.AsCode;
+    EndIndention;
+    Result += CRLF;
+  end;
 end;
 
 
@@ -885,8 +929,6 @@ end;
 
 function TClassDeclaration.GetAsCode: String;
 begin
-  Result := 'type' + CRLF;
-  BeginIndention;
   Result += GetIndentionString + 'J' + Name + ' = class external ''' + Name + '''';
   if Extends.Count > 0 then
   begin
@@ -904,16 +946,13 @@ begin
   EndIndention;
 
   Result += GetIndentionString + 'end;' + CRLF + CRLF;
-  EndIndention;
 end;
 
 { TInterfaceDeclaration }
 
 function TInterfaceDeclaration.GetAsCode: String;
 begin
-  Result := 'type' + CRLF;
-  BeginIndention;
-  Result += GetIndentionString + Name + ' = class external';
+  Result += GetIndentionString + 'J' + Name + ' = class external';
   if Extends.Count > 0 then
   begin
     Result += '(';
@@ -925,7 +964,9 @@ begin
   end;
   Result += CRLF;
   Result += &Type.AsCode;
-  EndIndention;
+
+  // line breaks
+  Result += CRLF + CRLF;
 end;
 
 { TTypeParameter }
@@ -946,7 +987,7 @@ end;
 
 function TTypeReference.GetAsCode: String;
 begin
-  Result := Name;
+  Result := 'J' + Name;
   if Arguments.Length > 0 then
   begin
     Result += ' {' + Arguments[0].AsCode;
