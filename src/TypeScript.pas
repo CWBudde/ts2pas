@@ -514,6 +514,11 @@ type
     const JSX = 1;
   end;
 
+  TDiagnosticCategory = (
+    Warning = 0,
+    Error = 1,
+    Message = 2
+  );
 
   JOperationCanceledException = class external 'OperationCanceledException'
   end;
@@ -523,14 +528,90 @@ type
     &end: Integer;
   end;
 
+  JNodeArray = class external({JArray,} JTextRange)
+    hasTrailingComma: Boolean; // nullable
+  end;
+
+  JModifiersArray = class external(JNodeArray)
+    flags: Float;
+  end;
+
   JNode = class external 'Node' (JTextRange)
     kind: TSyntaxKind;
     flags: TNodeFlags;
 (*
-    decorators: JNodeArray<Decorator>;
-    modifiers: JModifiersArray;
+    decorators: JNodeArray<Decorator>; // nullable
 *)
-    parent: JNode;
+    modifiers: JModifiersArray; // nullable
+    parent: JNode; // nullable
+  end;
+
+  JDeclaration = class external(JNode)
+    _declarationBrand: Variant;
+    name: String; // nullable
+  end;
+
+  JSymbolTable = class external
+    // property Item[index: String]: JSymbol;
+  end;
+
+  JSymbol = class external
+    flags: TSymbolFlags;
+    name: String;
+    declarations: array of JDeclaration; // nullable
+    valueDeclaration: JDeclaration; // nullable
+    members: JSymbolTable; // nullable
+    exports: JSymbolTable; // nullable
+  end;
+
+  JType = class external
+    flags: TTypeFlags;
+    symbol: JSymbol; // nullable
+  end;
+
+  JExpression = class external (JNode)
+    _expressionBrand: Variant;
+    contextualType: JType; // nullable
+  end;
+
+  JUnaryExpression = class external (JExpression)
+    _unaryExpressionBrand: Variant;
+  end;
+
+  JPrefixUnaryExpression = class external(JUnaryExpression)
+    &operator: TSyntaxKind;
+    operand: JUnaryExpression;
+  end;
+
+  JPostfixExpression = class external(JUnaryExpression)
+    _postfixExpressionBrand: Variant;
+  end;
+
+  JLeftHandSideExpression = class external(JPostfixExpression)
+    _leftHandSideExpressionBrand: Variant;
+  end;
+
+  JPostfixUnaryExpression = class external(JPostfixExpression)
+    operand: JLeftHandSideExpression;
+    &operator: TSyntaxKind;
+  end;
+
+  JMemberExpression = class external(JLeftHandSideExpression)
+    _memberExpressionBrand: Variant;
+  end;
+
+  JPrimaryExpression = class external(JMemberExpression)
+    _primaryExpressionBrand: Variant;
+  end;
+
+  JIdentifier = class external(JPrimaryExpression)
+    text: String;
+    originalKeywordKind: TSyntaxKind; // nullable
+  end;
+
+  JQualifiedName = class external(JNode)
+    left: String;
+    right: JIdentifier;
   end;
 
   JLineAndCharacter = class external 'LineAndCharacter'
@@ -538,11 +619,58 @@ type
     character: Integer;
   end;
 
-  TDiagnosticCategory = (
-    Warning = 0,
-    Error = 1,
-    Message = 2
-  );
+  JComputedPropertyName = class external(JNode)
+    expression: JExpression;
+  end;
+
+  JTypeNode = class external(JNode)
+    _typeNodeBrand: Variant;
+  end;
+
+  JTypeParameterDeclaration = class external(JDeclaration)
+    name: JIdentifier;
+    constraint: JTypeNode; // nullable
+    expression: JExpression; // nullable
+  end;
+
+  JSignatureDeclaration = class external(JDeclaration)
+    typeParameters: JNodeArray; // nullable
+    parameters: JNodeArray;
+    &type: JTypeNode; // nullable
+  end;
+
+  JVariableDeclarationList = class external(JNode)
+    declarations: JNodeArray;
+  end;
+
+  JVariableDeclaration = class external(JDeclaration)
+    parent: JVariableDeclarationList; // nullable
+    name: Variant {JIdentifier or JBindingPattern};
+    &type: JTypeNode; // nullable
+    initializer: JExpression; // nullable
+  end;
+
+  JParameterDeclaration = class external(JDeclaration)
+    dotDotDotToken: JNode; // nullable
+    name: Variant {JIdentifier or JBindingPattern};
+    questionToken: JNode; // nullable
+    &type: JTypeNode; // nullable
+    initializer: JExpression; // nullable
+  end;
+
+  JBindingElement = class external(JDeclaration)
+    propertyName: JIdentifier; // nullable
+    dotDotDotToken: JNode; // nullable
+    name: Variant {JIdentifier or JBindingPattern};
+    initializer: JExpression; // nullable
+  end;
+
+  JPropertyDeclaration = class external(JDeclaration{, JClassElement})
+    name: String;
+    questionToken: JNode; // nullable
+    &type: JTypeNode; // nullable
+    initializer: JExpression; // nullable
+  end;
 
   JDiagnosticMessage = class external
     key: string;
@@ -550,13 +678,166 @@ type
     code: Integer;
   end;
 
+  JObjectLiteralElement = class external(JDeclaration)
+    _objectLiteralBrandBrand: Variant;
+  end;
+
+  JPropertyAssignment = class external(JObjectLiteralElement)
+    _propertyAssignmentBrand: Variant;
+    name: String;
+    questionToken: JNode; // nullable
+    initializer: JExpression;
+  end;
+
+  JShorthandPropertyAssignment = class external(JObjectLiteralElement)
+    name: JIdentifier;
+    questionToken: JNode; // nullable
+  end;
+
+  JVariableLikeDeclaration = class external(JDeclaration)
+    propertyName: JIdentifier; // nullable
+    dotDotDotToken: JNode; // nullable
+    name: String;
+    questionToken: JNode; // nullable
+    &type: JTypeNode; // nullable
+    initializer: JExpression; // nullable
+  end;
+
+  JBindingPattern = class external(JNode)
+    elements: JNodeArray;
+  end;
+
+  JFunctionLikeDeclaration = class external(JSignatureDeclaration)
+    _functionLikeDeclarationBrand: Variant;
+    asteriskToken: JNode; // nullable
+    questionToken: JNode; // nullable
+    body: Variant {JBlock or JExpression}; // nullable
+  end;
+
+  JStatement = class external(JNode)
+    _statementBrand: Variant;
+  end;
+
+  JBlock = class external(JStatement)
+    statements: JNodeArray;
+  end;
+
+  JFunctionDeclaration = class external(JFunctionLikeDeclaration{, JStatement})
+    name: JIdentifier; // nullable
+    body: JBlock; // nullable
+  end;
+
+  JMethodDeclaration = class external(JFunctionLikeDeclaration {, JClassElement, JObjectLiteralElement})
+    body: JBlock; // nullable
+  end;
+
+  JConstructorDeclaration = class external(JFunctionLikeDeclaration {, JClassElement})
+    body: JBlock; // nullable
+  end;
+
+  JClassElement = class external(JDeclaration)
+    _classElementBrand: Variant;
+  end;
+
+  JInterfaceDeclaration = class external(JDeclaration{, JStatement})
+    name: JIdentifier;
+    typeParameters: JNodeArray; // nullable
+    heritageClauses: JNodeArray; // nullable
+    members: JNodeArray;
+  end;
+
+  JHeritageClause = class external(JNode)
+    token: TSyntaxKind;
+    types: JNodeArray; // nullable
+  end;
+
+  JTypeAliasDeclaration = class external(JDeclaration{, JStatement})
+    name: JIdentifier;
+    typeParameters: JNodeArray; // nullable
+    &type: JTypeNode;
+  end;
+
+  JEnumMember = class external(JDeclaration)
+    name: String;
+    initializer: JExpression; // nullable
+  end;
+
+  JEnumDeclaration = class external(JDeclaration{, JStatement})
+    name: JIdentifier;
+    members: JNodeArray;
+  end;
+
+  JModuleDeclaration = class external(JDeclaration{, JStatement})
+    name: Variant {JIdentifier or JLiteralExpression};
+    body: Variant {JModuleBlock or JModuleDeclaration};
+  end;
+
+  JModuleBlock = class external(JNode{, JStatement})
+    statements: JNodeArray;
+  end;
+
+  JSemicolonClassElement = class external(JClassElement)
+    _semicolonClassElementBrand: Variant;
+  end;
+
+  JAccessorDeclaration = class external(JFunctionLikeDeclaration {, JClassElement, JObjectLiteralElement})
+    _accessorDeclarationBrand: Variant;
+    body: JBlock;
+  end;
+
+  JIndexSignatureDeclaration = class external(JSignatureDeclaration{, JClassElement})
+    _indexSignatureDeclarationBrand: Variant;
+  end;
+
+  JImportEqualsDeclaration = class external(JDeclaration {, JStatement})
+    name: JIdentifier;
+    moduleReference: Variant {JEntityName or JExternalModuleReference};
+  end;
+
+  JExternalModuleReference = class external(JNode)
+    expression: JExpression; // nullable
+  end;
+
+  JImportClause = class external(JDeclaration)
+    name: JIdentifier; // nullable
+    namedBindings: Variant {JNamespaceImport or JNamedImports}; // nullable
+  end;
+
+  JImportDeclaration = class external(JStatement)
+    importClause: JImportClause; // nullable
+    moduleSpecifier: JExpression;
+  end;
+
+  JNamespaceImport = class external(JDeclaration)
+    name: JIdentifier;
+  end;
+
+  JExportDeclaration = class external(JDeclaration {, JStatement})
+    //exportClause: JNamedExports; // nullable
+    moduleSpecifier: JExpression; // nullable
+  end;
+
+  JNamedImportsOrExports = class external(JNode)
+    elements: JNodeArray;
+  end;
+
+  JImportOrExportSpecifier = class external(JDeclaration)
+    propertyName: JIdentifier; // nullable
+    name: JIdentifier;
+  end;
+
+  JExportAssignment = class external(JDeclaration{, JStatement})
+    isExportEquals: Boolean; // nullable
+    expression: JExpression;
+  end;
+
+  JFileReference = class external(JTextRange)
+    fileName: String;
+  end;
+
   TErrorCallback = procedure(message: JDiagnosticMessage; _length: Integer);
 
   TDeclarationName = Variant;
-
-  JDeclaration = class external 'Declaration' (JNode)
-    name: TDeclarationName;
-  end;
 
   JSourceFile = class external 'SourceFile' (JDeclaration)
 (*
@@ -576,6 +857,10 @@ type
     languageVersion: TScriptTarget;
   end;
 
+  JSymbolDisplayPart = class external
+    text: String;
+    kind: String;
+  end;
 
   JCommentRange = class external 'CommentRange' (JTextRange)
     hasTrailingNewLine: Boolean;
@@ -615,6 +900,526 @@ type
 *)
   end;
 
+  JCompilerOptions = class external
+    allowNonTsExtensions: Boolean; // nullable
+    charset: String; // nullable
+    declaration: Boolean; // nullable
+    diagnostics: Boolean; // nullable
+    emitBOM: Boolean; // nullable
+    help: Boolean; // nullable
+    init: Boolean; // nullable
+    inlineSourceMap: Boolean; // nullable
+    inlineSources: Boolean; // nullable
+    jsx: TJsxEmit; // nullable
+    listFiles: Boolean; // nullable
+    locale: String; // nullable
+    mapRoot: String; // nullable
+    module: TModuleKind; // nullable
+    newLine: TNewLineKind; // nullable
+    noEmit: Boolean; // nullable
+    noEmitHelpers: Boolean; // nullable
+    noEmitOnError: Boolean; // nullable
+    noErrorTruncation: Boolean; // nullable
+    noImplicitAny: Boolean; // nullable
+    noLib: Boolean; // nullable
+    noResolve: Boolean; // nullable
+    out: String; // nullable
+    outFile: String; // nullable
+    outDir: String; // nullable
+    preserveConstEnums: Boolean; // nullable
+    project: String; // nullable
+    removeComments: Boolean; // nullable
+    rootDir: String; // nullable
+    sourceMap: Boolean; // nullable
+    sourceRoot: String; // nullable
+    suppressExcessPropertyErrors: Boolean; // nullable
+    suppressImplicitAnyIndexErrors: Boolean; // nullable
+    target: TScriptTarget; // nullable
+    version: Boolean; // nullable
+    watch: Boolean; // nullable
+    isolatedModules: Boolean; // nullable
+    experimentalDecorators: Boolean; // nullable
+    experimentalAsyncFunctions: Boolean; // nullable
+    emitDecoratorMetadata: Boolean; // nullable
+    moduleResolution: TModuleResolutionKind; // nullable
+    // property Item[option: String]: Variant {String or Float or Boolean};
+  end;
+
+  JDiagnostic = class external
+    file: JSourceFile;
+    start: Float;
+    length: Float;
+    messageText: Variant {String or JDiagnosticMessageChain};
+    category: TDiagnosticCategory;
+    code: Float;
+  end;
+
+  JTextSpan = class external
+    start: Integer;
+    length: Integer;
+  end;
+
+  JTextChangeRange = class external
+    span: JTextSpan;
+    newLength: Integer;
+  end;
+
+  JTextChange = class external 'TextChange'
+    span: JTextSpan;
+    newText: String;
+  end;
+
+  JIScriptSnapshot = class external
+    function getText(start: Float; &end: Float): String;
+    function getLength: Float;
+    function getChangeRange(oldSnapshot: JIScriptSnapshot): JTextChangeRange;
+    procedure dispose;
+  end;
+
+  JTranspileOptions = class external
+    compilerOptions: JCompilerOptions; // nullable
+    fileName: String; // nullable
+    reportDiagnostics: Boolean; // nullable
+    moduleName: String; // nullable
+    // renamedDependencies: JMap; // nullable
+  end;
+
+  JTranspileOutput = class external
+    outputText: String;
+    diagnostics: array of JDiagnostic; // nullable
+    sourceMapText: String; // nullable
+  end;
+
+  JDocumentRegistry = class external
+    function acquireDocument(fileName: String; compilationSettings: JCompilerOptions; scriptSnapshot: JIScriptSnapshot; version: String): JSourceFile;
+    function updateDocument(fileName: String; compilationSettings: JCompilerOptions; scriptSnapshot: JIScriptSnapshot; version: String): JSourceFile;
+    procedure releaseDocument(fileName: String; compilationSettings: JCompilerOptions);
+    function reportStats: String;
+  end;
+
+  JPreProcessedFileInfo = class external
+    referencedFiles: array of JFileReference;
+    importedFiles: array of JFileReference;
+    ambientExternalModules: array of String;
+    isLibFile: Boolean;
+  end;
+
+  JHostCancellationToken = class external
+    function isCancellationRequested: Boolean;
+  end;
+
+  JResolvedModule = class external
+    resolvedFileName: String;
+    isExternalLibraryImport: Boolean; // nullable
+  end;
+
+  JResolvedModuleWithFailedLookupLocations = class external
+    resolvedModule: JResolvedModule;
+    failedLookupLocations: array of String;
+  end;
+
+  JLanguageServiceHost = class external
+    function getCompilationSettings: JCompilerOptions;
+    function getNewLine: String;
+    function getProjectVersion: String;
+    function getScriptFileNames: array of String;
+    function getScriptVersion(fileName: String): String;
+    function getScriptSnapshot(fileName: String): JIScriptSnapshot;
+    function getLocalizedDiagnosticMessages: Variant;
+    function getCancellationToken: JHostCancellationToken;
+    function getCurrentDirectory: String;
+    function getDefaultLibFileName(options: JCompilerOptions): String;
+    procedure log(s: String);
+    procedure trace(s: String);
+    procedure error(s: String);
+    function useCaseSensitiveFileNames: Boolean;
+    function resolveModuleNames(moduleNames: array of String; containingFile: String): array of JResolvedModule;
+  end;
+
+  TEndOfLineState = Integer;
+  TEndOfLineStateHelper = strict helper for TEndOfLineState
+    const None = 0;
+    const InMultiLineCommentTrivia = 1;
+    const InSingleQuoteStringLiteral = 2;
+    const InDoubleQuoteStringLiteral = 3;
+    const InTemplateHeadOrNoSubstitutionTemplate = 4;
+    const InTemplateMiddleOrTail = 5;
+    const InTemplateSubstitutionPosition = 6;
+  end;
+
+  TTokenClass = Integer;
+  TTokenClassHelper = strict helper for TTokenClass
+    const Punctuation = 0;
+    const Keyword = 1;
+    const &Operator = 2;
+    const Comment = 3;
+    const Whitespace = 4;
+    const Identifier = 5;
+    const NumberLiteral = 6;
+    const StringLiteral = 7;
+    const RegExpLiteral = 8;
+  end;
+
+  JClassifications = class external
+    spans: array of Float;
+    endOfLineState: TEndOfLineState;
+  end;
+
+  JClassifiedSpan = class external
+    textSpan: JTextSpan;
+    classificationType: String;
+  end;
+
+  JCompletionEntry = class external
+    name: String;
+    kind: String;
+    kindModifiers: String;
+    sortText: String;
+  end;
+
+  JCompletionEntryDetails = class external
+    name: String;
+    kind: String;
+    kindModifiers: String;
+    displayParts: array of JSymbolDisplayPart;
+    documentation: array of JSymbolDisplayPart;
+  end;
+
+  JCompletionInfo = class external
+    isMemberCompletion: Boolean;
+    isNewIdentifierLocation: Boolean;
+    entries: array of JCompletionEntry;
+  end;
+
+  JQuickInfo = class external
+    kind: String;
+    kindModifiers: String;
+    textSpan: JTextSpan;
+    displayParts: array of JSymbolDisplayPart;
+    documentation: array of JSymbolDisplayPart;
+  end;
+
+  JSignatureHelpParameter = class external
+    name: String;
+    documentation: array of JSymbolDisplayPart;
+    displayParts: array of JSymbolDisplayPart;
+    isOptional: Boolean;
+  end;
+
+  JSignatureHelpItem = class external
+    isVariadic: Boolean;
+    prefixDisplayParts: array of JSymbolDisplayPart;
+    suffixDisplayParts: array of JSymbolDisplayPart;
+    separatorDisplayParts: array of JSymbolDisplayPart;
+    parameters: array of JSignatureHelpParameter;
+    documentation: array of JSymbolDisplayPart;
+  end;
+
+  JSignatureHelpItems = class external
+    items: array of JSignatureHelpItem;
+    applicableSpan: JTextSpan;
+    selectedItemIndex: Float;
+    argumentIndex: Float;
+    argumentCount: Float;
+  end;
+
+  JRenameInfo = class external
+    canRename: Boolean;
+    localizedErrorMessage: String;
+    displayName: String;
+    fullDisplayName: String;
+    kind: String;
+    kindModifiers: String;
+    triggerSpan: JTextSpan;
+  end;
+
+  JRenameLocation = class external
+    textSpan: JTextSpan;
+    fileName: String;
+  end;
+
+  JReferenceEntry = class external
+    textSpan: JTextSpan;
+    fileName: String;
+    isWriteAccess: Boolean;
+  end;
+
+  JHighlightSpan = class external
+    fileName: String; // nullable
+    textSpan: JTextSpan;
+    kind: String;
+  end;
+
+  JDocumentHighlights = class external
+    fileName: String;
+    highlightSpans: array of JHighlightSpan;
+  end;
+
+  JDefinitionInfo = class external
+    fileName: String;
+    textSpan: JTextSpan;
+    kind: String;
+    name: String;
+    containerKind: String;
+    containerName: String;
+  end;
+
+  JReferencedSymbol = class external
+    definition: JDefinitionInfo;
+    references: array of JReferenceEntry;
+  end;
+
+  JNavigateToItem = class external
+    name: String;
+    kind: String;
+    kindModifiers: String;
+    matchKind: String;
+    isCaseSensitive: Boolean;
+    fileName: String;
+    textSpan: JTextSpan;
+    containerName: String;
+    containerKind: String;
+  end;
+
+  JOutliningSpan = class external
+    textSpan: JTextSpan;
+    hintSpan: JTextSpan;
+    bannerText: String;
+    autoCollapse: Boolean;
+  end;
+
+  JEditorOptions = class external
+    IndentSize: Float;
+    TabSize: Float;
+    NewLineCharacter: String;
+    ConvertTabsToSpaces: Boolean;
+  end;
+
+  JNavigationBarItem = class external
+    text: String;
+    kind: String;
+    kindModifiers: String;
+    spans: array of JTextSpan;
+    childItems: array of JNavigationBarItem;
+    indent: Float;
+    bolded: Boolean;
+    grayed: Boolean;
+  end;
+
+  JTodoCommentDescriptor = class external
+    text: String;
+    priority: Float;
+  end;
+
+  JTodoComment = class external
+    descriptor: JTodoCommentDescriptor;
+    message: String;
+    position: Float;
+  end;
+
+  JTextInsertion = class external
+    newText: String;
+    caretOffset: Float;
+  end;
+
+  JFormatCodeOptions = class external(JEditorOptions)
+    InsertSpaceAfterCommaDelimiter: Boolean;
+    InsertSpaceAfterSemicolonInForStatements: Boolean;
+    InsertSpaceBeforeAndAfterBinaryOperators: Boolean;
+    InsertSpaceAfterKeywordsInControlFlowStatements: Boolean;
+    InsertSpaceAfterFunctionKeywordForAnonymousFunctions: Boolean;
+    InsertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis: Boolean;
+    InsertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets: Boolean;
+    PlaceOpenBraceOnNewLineForFunctions: Boolean;
+    PlaceOpenBraceOnNewLineForControlBlocks: Boolean;
+    // property Item[s: String]: Variant {Boolean or Float or String};
+  end;
+
+  JOutputFile = class external
+    name: String;
+    writeByteOrderMark: Boolean;
+    text: String;
+  end;
+
+  JEmitOutput = class external
+    outputFiles: array of JOutputFile;
+    emitSkipped: Boolean;
+  end;
+
+  JScriptReferenceHost = class external
+    function getCompilerOptions: JCompilerOptions;
+    function getSourceFile(fileName: String): JSourceFile;
+    function getCurrentDirectory: String;
+  end;
+
+  TWriteFileCallback = procedure (fileName: String; data: String; writeByteOrderMark: Boolean; onError: procedure(message: String));
+
+  JCancellationToken = class external
+    function isCancellationRequested: Boolean;
+    procedure throwIfCancellationRequested;
+  end;
+
+  JEmitResult = class external
+    emitSkipped: Boolean;
+    diagnostics: array of JDiagnostic;
+  end;
+
+  JTypeParameter = class external(JType)
+    constraint: JType;
+  end;
+
+  JTypePredicate = class external
+    parameterName: String;
+    parameterIndex: Float;
+    &type: JType;
+  end;
+
+  JSignature = class external
+    declaration: JSignatureDeclaration;
+    typeParameters: array of JTypeParameter;
+    parameters: array of JSymbol;
+    typePredicate: JTypePredicate; // nullable
+  end;
+
+  JObjectType = class external(JType)
+  end;
+
+  JInterfaceType = class external(JObjectType)
+    typeParameters: array of JTypeParameter;
+    outerTypeParameters: array of JTypeParameter;
+    localTypeParameters: array of JTypeParameter;
+  end;
+
+  JSymbolWriter = class external
+    procedure writeKeyword(text: String);
+    procedure writeOperator(text: String);
+    procedure writePunctuation(text: String);
+    procedure writeSpace(text: String);
+    procedure writeStringLiteral(text: String);
+    procedure writeParameter(text: String);
+    procedure writeSymbol(text: String; symbol: JSymbol);
+    procedure writeLine;
+    procedure increaseIndent;
+    procedure decreaseIndent;
+    procedure clear;
+    procedure trackSymbol(symbol: JSymbol; enclosingDeclaration: JNode; meaning: TSymbolFlags);
+  end;
+
+  JSymbolDisplayBuilder = class external
+    procedure buildTypeDisplay(&type: JType; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
+    procedure buildSymbolDisplay(symbol: JSymbol; writer: JSymbolWriter; enclosingDeclaration: JNode; meaning: TSymbolFlags; flags: TSymbolFormatFlags);
+    procedure buildSignatureDisplay(signatures: JSignature; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
+    procedure buildParameterDisplay(parameter: JSymbol; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
+    procedure buildTypeParameterDisplay(tp: JTypeParameter; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
+    procedure buildTypeParameterDisplayFromSymbol(symbol: JSymbol; writer: JSymbolWriter; enclosingDeclaraiton: JNode; flags: TTypeFormatFlags);
+    procedure buildDisplayForParametersAndDelimiters(parameters: array of JSymbol; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
+    procedure buildDisplayForTypeParametersAndDelimiters(typeParameters: array of JTypeParameter; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
+    procedure buildReturnTypeDisplay(signature: JSignature; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
+  end;
+
+  JCallLikeExpression = Variant;
+  JJsxOpeningLikeElement = Variant;
+
+  JTypeChecker = class external
+    function getTypeOfSymbolAtLocation(symbol: JSymbol; node: JNode): JType;
+    function getDeclaredTypeOfSymbol(symbol: JSymbol): JType;
+    function getPropertiesOfType(&type: JType): array of JSymbol;
+    function getPropertyOfType(&type: JType; propertyName: String): JSymbol;
+    function getSignaturesOfType(&type: JType; kind: TSignatureKind): array of JSignature;
+    function getIndexTypeOfType(&type: JType; kind: TIndexKind): JType;
+    function getBaseTypes(&type: JInterfaceType): array of JObjectType;
+    function getReturnTypeOfSignature(signature: JSignature): JType;
+    function getSymbolsInScope(location: JNode; meaning: TSymbolFlags): array of JSymbol;
+    function getSymbolAtLocation(node: JNode): JSymbol;
+    function getShorthandAssignmentValueSymbol(location: JNode): JSymbol;
+    function getTypeAtLocation(node: JNode): JType;
+    function typeToString(&type: JType; enclosingDeclaration: JNode; flags: TTypeFormatFlags): String;
+    function symbolToString(symbol: JSymbol; enclosingDeclaration: JNode; meaning: TSymbolFlags): String;
+    function getSymbolDisplayBuilder: JSymbolDisplayBuilder;
+    function getFullyQualifiedName(symbol: JSymbol): String;
+    function getAugmentedPropertiesOfType(&type: JType): array of JSymbol;
+    function getRootSymbols(symbol: JSymbol): array of JSymbol;
+    function getContextualType(node: JExpression): JType;
+    function getResolvedSignature(node: JCallLikeExpression; candidatesOutArray: array of JSignature): JSignature;
+    function getSignatureFromDeclaration(declaration: JSignatureDeclaration): JSignature;
+    function isImplementationOfOverload(node: JFunctionLikeDeclaration): Boolean;
+    function isUndefinedSymbol(symbol: JSymbol): Boolean;
+    function isArgumentsSymbol(symbol: JSymbol): Boolean;
+    function getConstantValue(node: Variant {JEnumMember or JPropertyAccessExpression or JElementAccessExpression}): Float;
+    function isValidPropertyAccess(node: Variant {JPropertyAccessExpression or JQualifiedName}; propertyName: String): Boolean;
+    function getAliasedSymbol(symbol: JSymbol): JSymbol;
+    function getExportsOfModule(moduleSymbol: JSymbol): array of JSymbol;
+    function getJsxElementAttributesType(elementNode: JJsxOpeningLikeElement): JType;
+    function getJsxIntrinsicTagNames: array of JSymbol;
+    function isOptionalParameter(node: JParameterDeclaration): Boolean;
+  end;
+
+  JProgram = class external(JScriptReferenceHost)
+    function getRootFileNames: array of String;
+    function getSourceFiles: array of JSourceFile;
+    function emit(targetSourceFile: JSourceFile; writeFile: TWriteFileCallback; cancellationToken: JCancellationToken): JEmitResult;
+    function getOptionsDiagnostics(cancellationToken: JCancellationToken): array of JDiagnostic;
+    function getGlobalDiagnostics(cancellationToken: JCancellationToken): array of JDiagnostic;
+    function getSyntacticDiagnostics(sourceFile: JSourceFile; cancellationToken: JCancellationToken): array of JDiagnostic;
+    function getSemanticDiagnostics(sourceFile: JSourceFile; cancellationToken: JCancellationToken): array of JDiagnostic;
+    function getDeclarationDiagnostics(sourceFile: JSourceFile; cancellationToken: JCancellationToken): array of JDiagnostic;
+    function getTypeChecker: JTypeChecker;
+  end;
+
+  JLanguageService = class external
+    procedure cleanupSemanticCache;
+    function getSyntacticDiagnostics(fileName: String): array of JDiagnostic;
+    function getSemanticDiagnostics(fileName: String): array of JDiagnostic;
+    function getCompilerOptionsDiagnostics: array of JDiagnostic;
+    function getSyntacticClassifications(fileName: String; span: JTextSpan): array of JClassifiedSpan;
+    function getSemanticClassifications(fileName: String; span: JTextSpan): array of JClassifiedSpan;
+    function getEncodedSyntacticClassifications(fileName: String; span: JTextSpan): JClassifications;
+    function getEncodedSemanticClassifications(fileName: String; span: JTextSpan): JClassifications;
+    function getCompletionsAtPosition(fileName: String; position: Float): JCompletionInfo;
+    function getCompletionEntryDetails(fileName: String; position: Float; entryName: String): JCompletionEntryDetails;
+    function getQuickInfoAtPosition(fileName: String; position: Float): JQuickInfo;
+    function getNameOrDottedNameSpan(fileName: String; startPos: Float; endPos: Float): JTextSpan;
+    function getBreakpointStatementAtPosition(fileName: String; position: Float): JTextSpan;
+    function getSignatureHelpItems(fileName: String; position: Float): JSignatureHelpItems;
+    function getRenameInfo(fileName: String; position: Float): JRenameInfo;
+    function findRenameLocations(fileName: String; position: Float; findInStrings: Boolean; findInComments: Boolean): array of JRenameLocation;
+    function getDefinitionAtPosition(fileName: String; position: Float): array of JDefinitionInfo;
+    function getTypeDefinitionAtPosition(fileName: String; position: Float): array of JDefinitionInfo;
+    function getReferencesAtPosition(fileName: String; position: Float): array of JReferenceEntry;
+    function findReferences(fileName: String; position: Float): array of JReferencedSymbol;
+    function getDocumentHighlights(fileName: String; position: Float; filesToSearch: array of String): array of JDocumentHighlights;
+    function getOccurrencesAtPosition(fileName: String; position: Float): array of JReferenceEntry;
+    function getNavigateToItems(searchValue: String; maxResultCount: Float): array of JNavigateToItem;
+    function getNavigationBarItems(fileName: String): array of JNavigationBarItem;
+    function getOutliningSpans(fileName: String): array of JOutliningSpan;
+    function getTodoComments(fileName: String; descriptors: array of JTodoCommentDescriptor): array of JTodoComment;
+    function getBraceMatchingAtPosition(fileName: String; position: Float): array of JTextSpan;
+    function getIndentationAtPosition(fileName: String; position: Float; options: JEditorOptions): Float;
+    function getFormattingEditsForRange(fileName: String; start: Float; &end: Float; options: JFormatCodeOptions): array of JTextChange;
+    function getFormattingEditsForDocument(fileName: String; options: JFormatCodeOptions): array of JTextChange;
+    function getFormattingEditsAfterKeystroke(fileName: String; position: Float; key: String; options: JFormatCodeOptions): array of JTextChange;
+    function getDocCommentTemplateAtPosition(fileName: String; position: Float): JTextInsertion;
+    function getEmitOutput(fileName: String): JEmitOutput;
+    function getProgram: JProgram;
+    function getSourceFile(fileName: String): JSourceFile;
+    procedure dispose;
+  end;
+
+  JClassificationInfo = class external
+    length: Float;
+    classification: TTokenClass;
+  end;
+
+  JClassificationResult = class external
+    finalLexState: TEndOfLineState;
+    entries: array of JClassificationInfo;
+  end;
+
+  JClassifier = class external
+    function getClassificationsForLine(text: String; lexState: TEndOfLineState; syntacticClassifierAbsent: Boolean): JClassificationResult;
+    function getEncodedLexicalClassifications(text: String; endOfLineState: TEndOfLineState; syntacticClassifierAbsent: Boolean): JClassifications;
+  end;
+
   JTypeScriptExport = class external
     function tokenToString(t: TSyntaxKind): string; external;
     function getPositionOfLineAndCharacter(sourceFile: JSourceFile; line, character: Integer): Integer; external;
@@ -638,6 +1443,19 @@ type
 
     function createSourceFile(fileName, sourceText: String; languageVersion: TScriptTarget): JSourceFile; overload;
     function createSourceFile(fileName, sourceText: String; languageVersion: TScriptTarget; setParentNodes: Boolean): JSourceFile; overload;
+
+    function displayPartsToString(displayParts: array of JSymbolDisplayPart): String;
+    function getDefaultCompilerOptions: JCompilerOptions;
+    function transpileModule(input: String; transpileOptions: JTranspileOptions): JTranspileOutput;
+    function transpile(input: String; compilerOptions: JCompilerOptions; fileName: String; diagnostics: array of JDiagnostic; moduleName: String): String;
+    //function createLanguageServiceSourceFile(fileName: String; scriptSnapshot: JIScript; SnapshotscriptTarget: JScriptTargetversion: String; setNodeParents: Boolean): JSourceFile;
+    function updateLanguageServiceSourceFile(sourceFile: JSourceFile; scriptSnapshot: JIScriptSnapshot; version: String; textChangeRange: JTextChangeRange; aggressiveChecks: Boolean): JSourceFile;
+    //function createGetCanonicalFileName(useCaseSensitivefileNames: Boolean): (fileName: String): String;
+    function createDocumentRegistry(useCaseSensitiveFileNames: Boolean): JDocumentRegistry;
+    function preProcessFile(sourceText: String; readImportFiles: Boolean): JPreProcessedFileInfo;
+    function createLanguageService(host: JLanguageServiceHost; documentRegistry: JDocumentRegistry): JLanguageService;
+    function createClassifier: JClassifier;
+    function getDefaultLibFilePath(options: JCompilerOptions): String;
   end;
 
 var TypeScriptExport := JTypeScriptExport(RequireModule('typescript'));
