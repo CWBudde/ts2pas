@@ -8,8 +8,6 @@ const
 type
   TVisibility = (vPublic, vProtected, vPrivate);
 
-  TTypeParameters = string;
-
   IDeclarationOwner = interface
   end;
 
@@ -20,11 +18,12 @@ type
   protected
     function GetAsCode: String; virtual; abstract;
 
-    class procedure BeginIndention;
-    class procedure EndIndention;
     class function GetIndentionString: String;
   public
     constructor Create(Owner: IDeclarationOwner); virtual;
+
+    class procedure BeginIndention;
+    class procedure EndIndention;
 
     property AsCode: String read GetAsCode;
   end;
@@ -126,7 +125,6 @@ type
   protected
     function GetAsCode: String; override;
   public
-    property Name: String;
     property &Type: TCustomType;
   end;
 
@@ -135,6 +133,7 @@ type
     FName: String;
   protected
     function GetName: String; override;
+    function GetAsCode: String; override;
   public
     constructor Create(Owner: IDeclarationOwner; AName: String); reintroduce;
     property Name: String read GetName;
@@ -177,12 +176,22 @@ type
     property &Type: TFunctionType;
   end;
 
+  TTypeParameter = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Name: String;
+    property ExtendsType: TCustomType;
+  end;
+
   TCustomTypeMember = class(TNamedDeclaration)
   public
     constructor Create(Owner: IDeclarationOwner); override;
 
     property Visibility: TVisibility;
     property IsStatic: Boolean;
+    property TypeArguments: array of TTypeArgument;
+    property TypeParameters: array of TTypeParameter;
   end;
 
   TObjectType = class(TCustomType)
@@ -219,14 +228,6 @@ type
     property AsCode[OmitType: Boolean]: String read GetAsCodeOmitType;
   end;
 
-  TTypeParameter = class(TCustomDeclaration)
-  protected
-    function GetAsCode: String; override;
-  public
-    property Name: String;
-    property ExtendsType: TCustomType;
-  end;
-
   TTypeReference = class(TCustomDeclaration)
   protected
     function GetAsCode: String; override;
@@ -239,7 +240,6 @@ type
   protected
     function GetAsCode: String; override;
   public
-    property &TypeParameters: TTypeParameters;
     property ParameterList: array of TParameter;
     property &Type: TCustomType;
   end;
@@ -273,6 +273,7 @@ type
     property Name: String;
     property Extends: array of TTypeReference;
     property &Type: TObjectType;
+    property TypeParameters: array of TTypeParameter;
   end;
 
   TClassDeclaration = class(TInterfaceDeclaration)
@@ -295,9 +296,9 @@ type
     function GetAsCode: String; override;
     function GetAsCodeWithOptionalLevel(OptionalLevel: Integer): String; overload;
   public
-    property &TypeParameters: TTypeParameters;
     property ParameterList: array of TParameter;
     property &Type: TCustomType;
+    property TypeParameters: array of TTypeParameter;
     property AsCode[OptionalLevel: Integer]: String read GetAsCodeWithOptionalLevel;
   end;
 
@@ -325,15 +326,52 @@ type
     property CallSignature: TCallSignature;
   end;
 
-  TAmbientClassDeclaration = class(TClassDeclaration)
+  TAmbientBodyElement = class(TCustomDeclaration);
+
+  TAmbientClassDeclaration = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Name: String;
+    property Extends: array of TTypeReference;
+    property Implements: array of String;
+    property Members: array of TAmbientBodyElement;
   end;
 
+  TAmbientPropertyMemberDeclaration = class(TAmbientBodyElement)
+  public
+    property Visibility: TVisibility;
+    property IsStatic: Boolean;
+    property Name: string;
+  end;
+
+  TAmbientPropertyMemberDeclarationProperty = class(TAmbientPropertyMemberDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &Type: TCustomType;
+  end;
+
+  TAmbientPropertyMemberDeclarationMethod = class(TAmbientPropertyMemberDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property CallSignature: TCallSignature;
+  end;
+
+  TAmbientConstructorDeclaration = class(TAmbientBodyElement)
+  protected
+    function GetAsCode: String; override;
+  public
+    property ParameterList: array of TFunctionParameter;
+  end;
 
   TTypeAlias = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
   public
     property &Type: TCustomType;
+    property &TypeParameters: array of TTypeParameter;
   end;
 
 
@@ -346,14 +384,10 @@ type
     property Variables: array of TAmbientVariableDeclaration;
     property TypeAliases: array of TTypeAlias;
     property Functions: array of TAmbientFunctionDeclaration;
-    property Classes: array of TAmbientClassDeclaration;
+    property Classes: array of TClassDeclaration;
     property Modules: array of TAmbientModuleDeclaration;
     property Interfaces: array of TInterfaceDeclaration;
   end;
-
-
-
-
 
 
 
@@ -384,7 +418,7 @@ type
   protected
     function GetAsCode: String; override;
   public
-    property Classes: array of TClassDeclaration;
+    property Classes: array of TAmbientClassDeclaration;
     property Functions: array of TAmbientFunctionDeclaration;
     property Enums: array of TEnumerationDeclaration;
     property Modules: array of TAmbientModuleDeclaration;
@@ -616,6 +650,18 @@ begin
   Result := FName;
 end;
 
+function TNamedType.GetAsCode: String;
+begin
+  Result := inherited GetAsCode;
+  if Arguments.Length > 0 then
+  begin
+    Result += '{<';
+    for var Argument in Arguments do
+      Result += Argument.AsCode;
+    Result += '>}';
+  end;
+end;
+
 
 { TExportDeclaration }
 
@@ -727,7 +773,17 @@ end;
 
 function TFieldDeclaration.GetAsCode: String;
 begin
-  Result := GetIndentionString + Escape(Name) + ': ' + &Type.AsCode + ';';
+  Result := GetIndentionString + Escape(Name);
+
+  if TypeArguments.Count > 0 then
+  begin
+    Result += '{<';
+    for var Argument in TypeArguments do
+      Result += Argument.AsCode;
+    Result += '>}';
+  end;
+
+  Result += ': ' + &Type.AsCode + ';';
   if Nullable then
     Result += ' // nullable';
 
@@ -934,9 +990,18 @@ end;
 
 function TCallSignature.GetAsCode: String;
 begin
+  Result := '';
+  if TypeParameters.Length > 0 then
+  begin
+    Result += '{<';
+    for var TypeParameter in TypeParameters do
+      Result += TypeParameter.AsCode;
+    Result += '>}';
+  end;
+
   if ParameterList.Length > 0 then
   begin
-    Result := '(';
+    Result += '(';
     for var Index := Low(ParameterList) to High(ParameterList) - 1 do
       Result += ParameterList[Index].AsCode[False] + '; ';
     Result += ParameterList[High(ParameterList)].AsCode[False] + ')';
@@ -1093,6 +1158,9 @@ begin
     for var &Interface in Interfaces do
       Result += &Interface.AsCode;
 
+    for var TypeAlias in TypeAliases do
+      Result += TypeAlias.AsCode;
+
     EndIndention;
   end;
 
@@ -1146,7 +1214,18 @@ end;
 
 function TInterfaceDeclaration.GetAsCode: String;
 begin
-  Result += GetIndentionString + 'J' + Name + ' = class external';
+  Result += GetIndentionString + 'J' + Name;
+
+  if TypeParameters.Length > 0 then
+  begin
+    Result += '{<';
+    for var TypeParameter in TypeParameters do
+      Result += TypeParameter.AsCode;
+    Result += '>}';
+  end;
+
+  Result += ' = class external';
+
   if Extends.Count > 0 then
   begin
     Result += '(';
@@ -1163,19 +1242,25 @@ begin
   Result += CRLF + CRLF;
 end;
 
+
 { TTypeParameter }
 
 function TTypeParameter.GetAsCode: String;
 begin
-  Console.Log('not implemented: TTypeParameter.GetAsCode');
+  Result := Name;
+
+  if Assigned(ExtendsType) then
+    Result += ' extends ' + ExtendsType.AsCode;
 end;
+
 
 { TTypeArgument }
 
 function TTypeArgument.GetAsCode: String;
 begin
-  Console.Log('not implemented: TTypeArgument.GetAsCode');
+  Result := &Type.AsCode;;
 end;
+
 
 { TTypeReference }
 
@@ -1193,7 +1278,36 @@ end;
 
 function TTypeAlias.GetAsCode: String;
 begin
-  Console.Log('not implemented: TTypeAlias.GetAsCode');
+  Result := Name + ' = ' + &Type.AsCode;
+end;
+
+
+{ TAmbientConstructorDeclaration }
+
+function TAmbientConstructorDeclaration.GetAsCode: String;
+begin
+   Result := GetIndentionString + 'constructor';
+end;
+
+{ TAmbientClassDeclaration }
+
+function TAmbientClassDeclaration.GetAsCode: String;
+begin
+
+end;
+
+{ TAmbientPropertyMemberDeclarationProperty }
+
+function TAmbientPropertyMemberDeclarationProperty.GetAsCode: String;
+begin
+
+end;
+
+{ TAmbientPropertyMemberDeclarationMethod }
+
+function TAmbientPropertyMemberDeclarationMethod.GetAsCode: String;
+begin
+
 end;
 
 end.

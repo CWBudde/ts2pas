@@ -48,6 +48,7 @@ type
     function ReadTypeArgument: TTypeArgument;
     function ReadTypeReference: TTypeReference;
     function ReadCallSignature: TCallSignature;
+    function ReadCallSignature2: TCallSignature;
     function ReadObjectType: TObjectType;
     function ReadConstructorSignature: TConstructorDeclaration;
     function ReadIndexSignature: TIndexDeclaration;
@@ -58,7 +59,11 @@ type
 
     function ReadAmbientFunctionDeclaration: TAmbientFunctionDeclaration;
     function ReadAmbientClassDeclaration: TAmbientClassDeclaration;
-    function ReadAmbientClassMember: TCustomTypeMember;
+    function ReadAmbientClassBodyElement: TAmbientBodyElement;
+    function ReadAmbientConstructorDeclaration: TAmbientConstructorDeclaration;
+    function ReadAmbientPropertyMemberDeclarationProperty: TAmbientPropertyMemberDeclarationProperty;
+    function ReadAmbientPropertyMemberDeclarationMethod: TAmbientPropertyMemberDeclarationMethod;
+    function ReadAmbientPropertyMemberDeclaration: TAmbientPropertyMemberDeclaration;
     function ReadAmbientEnumDeclaration: TEnumerationDeclaration;
     function ReadAmbientModuleDeclaration: TAmbientModuleDeclaration;
     function ReadAmbientNamespaceDeclaration: TNamespaceDeclaration;
@@ -510,7 +515,7 @@ begin
 
     if CurrentToken = TSyntaxKind.LessThanToken then
     begin
-      ReadTypeParameter;
+      Result.TypeParameters.Add(ReadTypeParameter);
 
       ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken,
         TSyntaxKind.OpenParenToken], True);
@@ -560,7 +565,7 @@ begin
   ReadIdentifier(True);
   Result.Name := CurrentTokenText;
 
-  Console.Log('Read class: ' + Result.Name);
+  {$IFDEF DEBUG} Console.Log('Read class: ' + Result.Name); {$ENDIF}
 
   ReadToken([TSyntaxKind.ExtendsKeyword, TSyntaxKind.ImplementsKeyword,
     TSyntaxKind.OpenBraceToken], True);
@@ -613,9 +618,11 @@ begin
     if IsStatic then
       ReadIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken], True);
 
-    var Member := ReadAmbientClassMember;
+    var Member := ReadClassMember;
+(*
     Member.Visibility := Visibility;
     Member.IsStatic := IsStatic;
+*)
 
     Result.Members.Add(Member);
 
@@ -642,7 +649,7 @@ begin
     TSyntaxKind.OpenBraceToken], True);
   if CurrentToken = TSyntaxKind.LessThanToken then
   begin
-    ReadTypeParameter;
+    Result.TypeParameters.Add(ReadTypeParameter);
 
     ReadToken([TSyntaxKind.ExtendsKeyword, TSyntaxKind.OpenBraceToken], True);
   end;
@@ -699,7 +706,7 @@ begin
   begin
     case CurrentToken of
       TSyntaxKind.ClassKeyword:
-        Result.Classes.Add(ReadAmbientClassDeclaration);
+        Result.Classes.Add(ReadClassDeclaration);
       TSyntaxKind.ExportKeyword:
         Result.Exports.Add(ReadExportDeclaration);
       TSyntaxKind.EnumKeyword:
@@ -853,8 +860,6 @@ begin
 end;
 
 function TTranslator.ReadTypeMember: TCustomTypeMember;
-var
-  TypeArgument: TTypeArgument;
 begin
   AssumeIdentifier([TSyntaxKind.StringLiteral, TSyntaxKind.NumericLiteral,
     TSyntaxKind.PrivateKeyword, TSyntaxKind.NewKeyword,
@@ -881,7 +886,7 @@ begin
 
     if CurrentToken = TSyntaxKind.LessThanToken then
     begin
-      TypeArgument := ReadTypeArgument;
+      Result.TypeArguments.Add(ReadTypeArgument);
 
       ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken,
         TSyntaxKind.OpenParenToken], True);
@@ -1035,7 +1040,7 @@ begin
   ReadToken([TSyntaxKind.LessThanToken, TSyntaxKind.EqualsToken], True);
   if CurrentToken = TSyntaxKind.LessThanToken then
   begin
-    ReadTypeParameter;
+    Result.TypeParameters.Add(ReadTypeParameter);
 
     ReadToken(TSyntaxKind.EqualsToken, True);
   end;
@@ -1081,7 +1086,7 @@ begin
 
   if CurrentToken = TSyntaxKind.LessThanToken then
   begin
-    ReadTypeArgument;
+    Result.Arguments.Add(ReadTypeArgument);
 
     ReadToken;
   end;
@@ -1096,7 +1101,8 @@ begin
 
   if CurrentToken = TSyntaxKind.LessThanToken then
   begin
-    ReadTypeParameter; // should be a list
+    // should be a list
+    Result.TypeParameters.Add(ReadTypeParameter);
     ReadToken(TSyntaxKind.OpenParenToken, True);
   end;
 
@@ -1231,6 +1237,41 @@ begin
     AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CommaToken]);
 end;
 
+function TTranslator.ReadCallSignature2: TCallSignature;
+begin
+  AssumeToken([TSyntaxKind.OpenParenToken, TSyntaxKind.LessThanToken]);
+
+  // create call signature
+  Result := TCallSignature.Create(Self as IDeclarationOwner);
+
+  if CurrentToken = TSyntaxKind.LessThanToken then
+  begin
+    // should be a list
+    Result.TypeParameters.Add(ReadTypeParameter);
+    ReadToken(TSyntaxKind.OpenParenToken, True);
+  end;
+
+  AssumeToken(TSyntaxKind.OpenParenToken);
+
+  ReadIdentifier([TSyntaxKind.PublicKeyword, TSyntaxKind.PrivateKeyword,
+    TSyntaxKind.ProtectedKeyword, TSyntaxKind.DotDotDotToken,
+    TSyntaxKind.CloseParenToken], True);
+  while CurrentToken <> TSyntaxKind.CloseParenToken do
+  begin
+    Result.ParameterList.Add(ReadParameter);
+
+    if CurrentToken = TSyntaxKind.CommaToken then
+      ReadIdentifier([TSyntaxKind.DotDotDotToken]);
+  end;
+
+  // ensure that we are a close paren token
+  AssumeToken([TSyntaxKind.CloseParenToken]);
+
+  ReadToken([TSyntaxKind.ColonToken, TSyntaxKind.SemicolonToken], True);
+  if CurrentToken = TSyntaxKind.ColonToken then
+    Result.&Type := ReadType;
+end;
+
 function TTranslator.ReadAmbientFunctionDeclaration: TAmbientFunctionDeclaration;
 begin
   // assume we're at a function
@@ -1251,62 +1292,120 @@ begin
     AssumeToken([TSyntaxKind.SemicolonToken]);
 end;
 
-function TTranslator.ReadAmbientClassMember: TCustomTypeMember;
+function TTranslator.ReadAmbientConstructorDeclaration: TAmbientConstructorDeclaration;
 begin
-  // sanity check
-  AssumeIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken,
-    TSyntaxKind.StringLiteral, TSyntaxKind.ExportKeyword]);
+  // ensure we're at an open paren
+  AssumeToken(TSyntaxKind.ConstructorKeyword);
 
-  if CurrentToken = TSyntaxKind.OpenParenToken then
-    Result := ReadCallbackInterface
-  else
+  ReadToken(TSyntaxKind.OpenParenToken, True);
+
+  Result := TAmbientConstructorDeclaration.Create(Self as IDeclarationOwner);
+  while ReadIdentifier do
   begin
-    // create a interface member
-    var MemberName := FScanner.getTokenValue;
+    Result.ParameterList.Add(ReadFunctionParameter);
 
-    ReadToken([TSyntaxKind.LessThanToken, TSyntaxKind.QuestionToken,
-      TSyntaxKind.ColonToken, TSyntaxKind.OpenParenToken], True);
+    AssumeToken([TSyntaxKind.CommaToken, TSyntaxKind.CloseParenToken, TSyntaxKind.SemicolonToken]);
 
-    if CurrentToken = TSyntaxKind.LessThanToken then
-    begin
-      ReadTypeParameter;
-
-      ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken,
-        TSyntaxKind.OpenParenToken], True);
-    end;
-
-    // check if type is nullable
-    var Nullable := CurrentToken = TSyntaxKind.QuestionToken;
-    if Nullable then
-      ReadToken(TSyntaxKind.ColonToken, True);
-
-    case CurrentToken of
-      TSyntaxKind.ColonToken:
-        begin
-          Result := ReadFieldDeclaration;
-          TFieldDeclaration(Result).Nullable := Nullable;
-        end;
-      TSyntaxKind.OpenParenToken:
-        begin
-          if LowerCase(MemberName) = 'constructor' then
-            Result := ReadConstructorDeclaration
-          else
-            Result := ReadMethodDeclaration;
-        end;
-    end;
-
-    Result.Name := MemberName;
+    // eventually break if a close paren has been found
+    if CurrentToken in [TSyntaxKind.CloseParenToken] then
+      break;
   end;
 
+  // ensure that we are a close paren token
+  AssumeToken([TSyntaxKind.CloseParenToken, TSyntaxKind.SemicolonToken]);
+
+  if CurrentToken <> TSyntaxKind.SemicolonToken then
+    ReadToken(TSyntaxKind.SemicolonToken, True);
+end;
+
+function TTranslator.ReadAmbientPropertyMemberDeclarationProperty: TAmbientPropertyMemberDeclarationProperty;
+begin
+  Result := TAmbientPropertyMemberDeclarationProperty.Create(Self as IDeclarationOwner);
+
+  if CurrentToken = TSyntaxKind.ColonToken then
+    Result.Type := ReadType;
+end;
+
+function TTranslator.ReadAmbientPropertyMemberDeclarationMethod: TAmbientPropertyMemberDeclarationMethod;
+begin
+  AssumeToken(TSyntaxKind.OpenParenToken);
+
+  Result := TAmbientPropertyMemberDeclarationMethod.Create(Self as IDeclarationOwner);
+  Result.CallSignature := ReadCallSignature2;
+
+  // ensure that we are a close paren token
+  AssumeToken([TSyntaxKind.CloseParenToken, TSyntaxKind.SemicolonToken]);
+
+  if CurrentToken <> TSyntaxKind.SemicolonToken then
+    ReadToken(TSyntaxKind.SemicolonToken, True);
+end;
+
+function TTranslator.ReadAmbientPropertyMemberDeclaration: TAmbientPropertyMemberDeclaration;
+begin
+  // ensure we're at an open paren
+  AssumeIdentifier;
+
+  var MemberName := CurrentTokenText;
+
+  ReadToken([TSyntaxKind.ColonToken, TSyntaxKind.OpenParenToken,
+    TSyntaxKind.SemicolonToken], True);
+
+  if CurrentToken = TSyntaxKind.OpenParenToken then
+    Result := ReadAmbientPropertyMemberDeclarationMethod
+  else
+    Result := ReadAmbientPropertyMemberDeclarationProperty;
+
   if NeedsSemicolon then
-    AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CommaToken,
-      TSyntaxKind.CloseBraceToken]);
+    AssumeIdentifier([TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken,
+      TSyntaxKind.CommaToken]);
+end;
+
+function TTranslator.ReadAmbientClassBodyElement: TAmbientBodyElement;
+begin
+  // sanity check
+  AssumeIdentifier([TSyntaxKind.ConstructorKeyword, TSyntaxKind.PrivateKeyword,
+    TSyntaxKind.ProtectedKeyword, TSyntaxKind.PublicKeyword,
+    TSyntaxKind.StaticKeyword]);
+
+  if CurrentToken = TSyntaxKind.ConstructorKeyword then
+    Exit(ReadAmbientConstructorDeclaration);
+
+  var Visibility := vPublic;
+  case CurrentToken of
+    TSyntaxKind.PublicKeyword:
+      begin
+        Visibility := vPublic;
+        ReadIdentifier([TSyntaxKind.StaticKeyword], True);
+      end;
+    TSyntaxKind.ProtectedKeyword:
+      begin
+        Visibility := vProtected;
+        ReadIdentifier([TSyntaxKind.StaticKeyword], True);
+      end;
+    TSyntaxKind.PrivateKeyword:
+      begin
+        Visibility := vPrivate;
+        ReadIdentifier([TSyntaxKind.StaticKeyword], True);
+      end;
+  end;
+
+  var IsStatic := (CurrentToken = TSyntaxKind.StaticKeyword);
+  if IsStatic then
+    ReadIdentifier(True);
+
+  Result := ReadAmbientPropertyMemberDeclaration;
+  TAmbientPropertyMemberDeclaration(Result).IsStatic := IsStatic;
+  TAmbientPropertyMemberDeclaration(Result).Visibility := Visibility;
+
+  if NeedsSemicolon then
+    AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken]);
 end;
 
 function TTranslator.ReadAmbientClassDeclaration: TAmbientClassDeclaration;
 var
-  ClassElementTokens: array of TSyntaxKind = [TSyntaxKind.NewKeyword,
-    TSyntaxKind.StringLiteral, TSyntaxKind.ExportKeyword,
+  ClassElementTokens: array of TSyntaxKind = [TSyntaxKind.ConstructorKeyword,
+    TSyntaxKind.PrivateKeyword, TSyntaxKind.ProtectedKeyword,
+    TSyntaxKind.PublicKeyword, TSyntaxKind.StaticKeyword,
     TSyntaxKind.CloseBraceToken, TSyntaxKind.SemicolonToken];
 begin
   // sanity check
@@ -1319,7 +1418,7 @@ begin
   ReadIdentifier(True);
   Result.Name := CurrentTokenText;
 
-  {$IFDEF DEBUG} Console.Log('Read class: ' + Result.Name); {$ENDIF}
+  {$IFDEF DEBUG} Console.Log('Read ambient class: ' + Result.Name); {$ENDIF}
 
   ReadToken([TSyntaxKind.ExtendsKeyword, TSyntaxKind.ImplementsKeyword,
     TSyntaxKind.OpenBraceToken], True);
@@ -1347,34 +1446,7 @@ begin
   ReadIdentifier(ClassElementTokens);
   while CurrentToken <> TSyntaxKind.CloseBraceToken do
   begin
-    var Visibility := vPublic;
-    case CurrentToken of
-      TSyntaxKind.PublicKeyword:
-        begin
-          Visibility := vPublic;
-          ReadIdentifier([TSyntaxKind.NewKeyword], True);
-        end;
-      TSyntaxKind.ProtectedKeyword:
-        begin
-          Visibility := vProtected;
-          ReadIdentifier([TSyntaxKind.NewKeyword], True);
-        end;
-      TSyntaxKind.PrivateKeyword:
-        begin
-          Visibility := vPrivate;
-          ReadIdentifier([TSyntaxKind.NewKeyword], True);
-        end;
-    end;
-
-    var IsStatic := (CurrentToken = TSyntaxKind.StaticKeyword);
-    if IsStatic then
-      ReadIdentifier([TSyntaxKind.NewKeyword, TSyntaxKind.OpenParenToken], True);
-
-    var Member := ReadAmbientClassMember;
-    Member.Visibility := Visibility;
-    Member.IsStatic := IsStatic;
-
-    Result.Members.Add(Member);
+    Result.Members.Add(ReadAmbientClassBodyElement);
 
     if CurrentToken = TSyntaxKind.SemicolonToken then
       ReadIdentifier(ClassElementTokens);
@@ -1477,7 +1549,7 @@ begin
         Result.Functions.Add(ReadAmbientFunctionDeclaration);
       TSyntaxKind.ClassKeyword:
         begin
-          Result.Classes.Add(ReadAmbientClassDeclaration);
+          Result.Classes.Add(ReadClassDeclaration);
           ReadToken(ModuleTokens, True);
         end;
       TSyntaxKind.ModuleKeyword:
@@ -1561,11 +1633,17 @@ begin
   for var Module in FModules do
     Result := Result + Module.AsCode;
 
+  Result += 'type' + CRLF;
+  TCustomDeclaration.BeginIndention;
   for var &Interface in FInterfaces do
     Result := Result + &Interface.AsCode;
+  TCustomDeclaration.EndIndention;
 
+  Result += 'var' + CRLF;
+  TCustomDeclaration.BeginIndention;
   for var Declaration in FDeclarations do
     Result := Result + Declaration.AsCode;
+  TCustomDeclaration.EndIndention;
 end;
 
 function TTranslator.Translate(Source: String): String;

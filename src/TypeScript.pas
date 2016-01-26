@@ -1672,8 +1672,9 @@ type
     function getTypeParameterOwner(d: JDeclaration): JDeclaration;
 
     function createNode(kind: TSyntaxKind): JNode;
+    function forEachChild(node: JNode; cbNode: TNodeCallback): Variant; overload;
     function forEachChild(node: JNode; cbNode: TNodeCallback;
-      cbNodeArray: TNodeArrayCallback): Variant;
+      cbNodeArray: TNodeArrayCallback): Variant; overload;
     function updateSourceFile(sourceFile: JSourceFile; newText: String;
       textChangeRange: JTextChangeRange): JSourceFile; overload;
     function updateSourceFile(sourceFile: JSourceFile; newText: String;
