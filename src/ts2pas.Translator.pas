@@ -50,6 +50,7 @@ type
     function ReadCallSignature: TCallSignature;
     function ReadCallSignature2: TCallSignature;
     function ReadObjectType: TObjectType;
+    function ReadTupleType: TTupleType;
     function ReadConstructorSignature: TConstructorDeclaration;
     function ReadIndexSignature: TIndexDeclaration;
 
@@ -352,7 +353,7 @@ var
     TSyntaxKind.NumberKeyword, TSyntaxKind.StringKeyword,
     TSyntaxKind.BooleanKeyword, TSyntaxKind.VoidKeyword,
     TSyntaxKind.TypeOfKeyword, TSyntaxKind.OpenBraceToken,
-    TSyntaxKind.OpenParenToken];
+    TSyntaxKind.OpenParenToken, TSyntaxKind.OpenBracketToken];
 begin
   // read type
   AssumeToken(PrimaryTypeTokens);
@@ -370,7 +371,11 @@ begin
         Result := TNamedType.Create(Self as IDeclarationOwner, ReadIdentifierPath);
         if CurrentToken = TSyntaxKind.LessThanToken then
         begin
-          TNamedType(Result).Arguments.Add(ReadTypeArgument);
+          repeat
+            TNamedType(Result).Arguments.Add(ReadTypeArgument)
+          until CurrentToken <> TSyntaxKind.CommaToken;
+          AssumeToken(TSyntaxKind.GreaterThanToken);
+
           ReadToken;
         end;
       end;
@@ -414,6 +419,11 @@ begin
         Result := ReadObjectType;
         ReadToken;
       end;
+    TSyntaxKind.OpenBracketToken:
+      begin
+        Result := ReadTupleType;
+        ReadToken;
+      end;
   end;
 
   while CurrentToken = TSyntaxKind.OpenBracketToken do
@@ -434,7 +444,8 @@ var
     TSyntaxKind.NumberKeyword, TSyntaxKind.StringKeyword,
     TSyntaxKind.BooleanKeyword, TSyntaxKind.VoidKeyword,
     TSyntaxKind.TypeOfKeyword, TSyntaxKind.NewKeyword,
-    TSyntaxKind.OpenBraceToken, TSyntaxKind.OpenParenToken];
+    TSyntaxKind.OpenBraceToken, TSyntaxKind.OpenParenToken,
+    TSyntaxKind.OpenBracketToken];
 begin
   // read type
   ReadToken(TypeTokens, True);
@@ -649,7 +660,9 @@ begin
     TSyntaxKind.OpenBraceToken], True);
   if CurrentToken = TSyntaxKind.LessThanToken then
   begin
-    Result.TypeParameters.Add(ReadTypeParameter);
+    repeat
+      Result.TypeParameters.Add(ReadTypeParameter);
+    until CurrentToken <> TSyntaxKind.CommaToken;
 
     ReadToken([TSyntaxKind.ExtendsKeyword, TSyntaxKind.OpenBraceToken], True);
   end;
@@ -860,6 +873,8 @@ begin
 end;
 
 function TTranslator.ReadTypeMember: TCustomTypeMember;
+var
+  TypeArguments: array of TTypeArgument;
 begin
   AssumeIdentifier([TSyntaxKind.StringLiteral, TSyntaxKind.NumericLiteral,
     TSyntaxKind.PrivateKeyword, TSyntaxKind.NewKeyword,
@@ -886,7 +901,9 @@ begin
 
     if CurrentToken = TSyntaxKind.LessThanToken then
     begin
-      Result.TypeArguments.Add(ReadTypeArgument);
+      repeat
+        TypeArguments.Add(ReadTypeArgument);
+      until (CurrentToken <> TSyntaxKind.CommaToken);
 
       ReadToken([TSyntaxKind.QuestionToken, TSyntaxKind.ColonToken,
         TSyntaxKind.OpenParenToken], True);
@@ -907,6 +924,7 @@ begin
         Result := ReadMethodDeclaration;
     end;
 
+    Result.TypeArguments := TypeArguments;
     Result.Name := MemberName;
   end;
 end;
@@ -936,6 +954,21 @@ begin
 
   // assume we're at a close brace
   AssumeToken(TSyntaxKind.CloseBraceToken);
+end;
+
+function TTranslator.ReadTupleType: TTupleType;
+begin
+  // assume we're at an open bracket
+  AssumeToken(TSyntaxKind.OpenBracketToken);
+
+  Result := TTupleType.Create(Self as IDeclarationOwner);
+
+  repeat
+    Result.Types.Add(ReadType);
+  until CurrentToken = TSyntaxKind.CloseBracketToken;
+
+  // assume we're at a close bracket
+  AssumeToken(TSyntaxKind.CloseBracketToken);
 end;
 
 function TTranslator.ReadParameter: TParameter;
@@ -1052,29 +1085,30 @@ end;
 
 function TTranslator.ReadTypeParameter: TTypeParameter;
 begin
-  AssumeToken(TSyntaxKind.LessThanToken);
+  AssumeToken([TSyntaxKind.LessThanToken, TSyntaxKind.CommaToken]);
 
   Result := TTypeParameter.Create(Self as IDeclarationOwner);
 
   ReadIdentifier(True);
   Result.Name := CurrentTokenText;
 
-  ReadToken([TSyntaxKind.ExtendsKeyword, TSyntaxKind.GreaterThanToken], True);
+  ReadToken([TSyntaxKind.ExtendsKeyword, TSyntaxKind.GreaterThanToken,
+    TSyntaxKind.CommaToken], True);
   if CurrentToken = TSyntaxKind.ExtendsKeyword then
   begin
     Result.ExtendsType := ReadType;
-    AssumeToken(TSyntaxKind.GreaterThanToken);
+    AssumeToken([TSyntaxKind.GreaterThanToken, TSyntaxKind.CommaToken]);
   end;
 end;
 
 function TTranslator.ReadTypeArgument: TTypeArgument;
 begin
-  AssumeToken(TSyntaxKind.LessThanToken);
+  AssumeToken([TSyntaxKind.LessThanToken, TSyntaxKind.CommaToken]);
 
   Result := TTypeArgument.Create(Self as IDeclarationOwner);
 
   Result.&Type := ReadType;
-  AssumeToken(TSyntaxKind.GreaterThanToken);
+  AssumeToken([TSyntaxKind.GreaterThanToken, TSyntaxKind.CommaToken]);
 end;
 
 function TTranslator.ReadTypeReference: TTypeReference;
@@ -1101,8 +1135,9 @@ begin
 
   if CurrentToken = TSyntaxKind.LessThanToken then
   begin
-    // should be a list
-    Result.TypeParameters.Add(ReadTypeParameter);
+    repeat
+      Result.TypeParameters.Add(ReadTypeParameter);
+    until CurrentToken <> TSyntaxKind.CommaToken;
     ReadToken(TSyntaxKind.OpenParenToken, True);
   end;
 
@@ -1354,6 +1389,8 @@ begin
     Result := ReadAmbientPropertyMemberDeclarationMethod
   else
     Result := ReadAmbientPropertyMemberDeclarationProperty;
+
+  Result.Name := MemberName;
 
   if NeedsSemicolon then
     AssumeIdentifier([TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken,
@@ -1633,17 +1670,17 @@ begin
   for var Module in FModules do
     Result := Result + Module.AsCode;
 
-  Result += 'type' + CRLF;
-  TCustomDeclaration.BeginIndention;
-  for var &Interface in FInterfaces do
-    Result := Result + &Interface.AsCode;
-  TCustomDeclaration.EndIndention;
+  if FInterfaces.Length > 0 then
+  begin
+    Result += 'type' + CRLF;
+    TCustomDeclaration.BeginIndention;
+    for var &Interface in FInterfaces do
+      Result := Result + &Interface.AsCode;
+    TCustomDeclaration.EndIndention;
+  end;
 
-  Result += 'var' + CRLF;
-  TCustomDeclaration.BeginIndention;
   for var Declaration in FDeclarations do
     Result := Result + Declaration.AsCode;
-  TCustomDeclaration.EndIndention;
 end;
 
 function TTranslator.Translate(Source: String): String;

@@ -19,6 +19,8 @@ begin
     InputFile += '.d.ts';
 
   FileSystem.readFile(InputFile, lambda(err: Variant; data: JNodeBuffer)
+    if not Assigned(data) then
+      Exit;
     var InputText := data.toString('utf8');
 
     {$IFDEF DEBUG}
