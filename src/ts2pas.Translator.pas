@@ -251,7 +251,7 @@ begin
 
   while ReadIdentifier([TSyntaxKind.DotDotDotToken]) do
   begin
-    Result.Parameters.Add(ReadFunctionParameter);
+    Result.ParameterList.Add(ReadFunctionParameter);
 
     AssumeToken([TSyntaxKind.CommaToken, TSyntaxKind.CloseParenToken, TSyntaxKind.SemicolonToken]);
 
@@ -278,7 +278,7 @@ begin
 
   while ReadIdentifier([TSyntaxKind.DotDotDotToken]) do
   begin
-    Result.Parameters.Add(ReadFunctionParameter);
+    Result.ParameterList.Add(ReadFunctionParameter);
 
     AssumeToken([TSyntaxKind.CommaToken, TSyntaxKind.CloseParenToken, TSyntaxKind.SemicolonToken]);
 
@@ -313,8 +313,8 @@ begin
     TSyntaxKind.CloseParenToken], True);
 
   // check if type is nullable
-  Result.Nullable := CurrentToken = TSyntaxKind.QuestionToken;
-  if Result.Nullable then
+  Result.IsOptional := CurrentToken = TSyntaxKind.QuestionToken;
+  if Result.IsOptional then
     ReadToken([TSyntaxKind.ColonToken], True);
 
   if CurrentToken = TSyntaxKind.ColonToken then
@@ -1538,9 +1538,21 @@ begin
   raise Exception.Create(Text);
 end;
 
+function GetUnitName(FileName: String): String;
+begin
+  if FileName.Length = 0 then
+    Exit('Unknown');
+  var Items := FileName.Split('\');
+  Result := Items[High(Items)];
+  Items := FileName.Split('/');
+  Result := Items[High(Items)];
+  Result := Result.Replace('-', '_');
+  Result[1] := Uppercase(Result[1]);
+end;
+
 function TTranslator.BuildPascalHeader: String;
 begin
-  Result := 'unit ' + Name + ';' + CRLF + CRLF;
+  Result := 'unit ' + GetUnitName(Name) + ';' + CRLF + CRLF;
   Result += 'interface' + CRLF + CRLF;
 
   for var Import in FImports do
