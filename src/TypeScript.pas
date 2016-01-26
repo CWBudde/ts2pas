@@ -533,7 +533,7 @@ type
   end;
 
   JModifiersArray = class external(JNodeArray)
-    flags: Float;
+    flags: Integer;
   end;
 
   JNode = class external 'Node' (JTextRange)
@@ -942,16 +942,16 @@ type
     experimentalAsyncFunctions: Boolean; // nullable
     emitDecoratorMetadata: Boolean; // nullable
     moduleResolution: TModuleResolutionKind; // nullable
-    // property Item[option: String]: Variant {String or Float or Boolean};
+    // property Item[option: String]: Variant {String or Integer or Boolean};
   end;
 
   JDiagnostic = class external
     file: JSourceFile;
-    start: Float;
-    length: Float;
+    start: Integer;
+    length: Integer;
     messageText: Variant {String or JDiagnosticMessageChain};
     category: TDiagnosticCategory;
-    code: Float;
+    code: Integer;
   end;
 
   JTextSpan = class external
@@ -970,8 +970,8 @@ type
   end;
 
   JIScriptSnapshot = class external
-    function getText(start: Float; &end: Float): String;
-    function getLength: Float;
+    function getText(start, &end: Integer): String;
+    function getLength: Integer;
     function getChangeRange(oldSnapshot: JIScriptSnapshot): JTextChangeRange;
     procedure dispose;
   end;
@@ -991,8 +991,10 @@ type
   end;
 
   JDocumentRegistry = class external
-    function acquireDocument(fileName: String; compilationSettings: JCompilerOptions; scriptSnapshot: JIScriptSnapshot; version: String): JSourceFile;
-    function updateDocument(fileName: String; compilationSettings: JCompilerOptions; scriptSnapshot: JIScriptSnapshot; version: String): JSourceFile;
+    function acquireDocument(fileName: String; compilationSettings: JCompilerOptions;
+      scriptSnapshot: JIScriptSnapshot; version: String): JSourceFile;
+    function updateDocument(fileName: String; compilationSettings: JCompilerOptions;
+      scriptSnapshot: JIScriptSnapshot; version: String): JSourceFile;
     procedure releaseDocument(fileName: String; compilationSettings: JCompilerOptions);
     function reportStats: String;
   end;
@@ -1061,7 +1063,7 @@ type
   end;
 
   JClassifications = class external
-    spans: array of Float;
+    spans: array of Integer;
     endOfLineState: TEndOfLineState;
   end;
 
@@ -1118,9 +1120,9 @@ type
   JSignatureHelpItems = class external
     items: array of JSignatureHelpItem;
     applicableSpan: JTextSpan;
-    selectedItemIndex: Float;
-    argumentIndex: Float;
-    argumentCount: Float;
+    selectedItemIndex: Integer;
+    argumentIndex: Integer;
+    argumentCount: Integer;
   end;
 
   JRenameInfo = class external
@@ -1189,8 +1191,8 @@ type
   end;
 
   JEditorOptions = class external
-    IndentSize: Float;
-    TabSize: Float;
+    IndentSize: Integer;
+    TabSize: Integer;
     NewLineCharacter: String;
     ConvertTabsToSpaces: Boolean;
   end;
@@ -1201,25 +1203,25 @@ type
     kindModifiers: String;
     spans: array of JTextSpan;
     childItems: array of JNavigationBarItem;
-    indent: Float;
+    indent: Integer;
     bolded: Boolean;
     grayed: Boolean;
   end;
 
   JTodoCommentDescriptor = class external
     text: String;
-    priority: Float;
+    priority: Integer;
   end;
 
   JTodoComment = class external
     descriptor: JTodoCommentDescriptor;
     message: String;
-    position: Float;
+    position: Integer;
   end;
 
   JTextInsertion = class external
     newText: String;
-    caretOffset: Float;
+    caretOffset: Integer;
   end;
 
   JFormatCodeOptions = class external(JEditorOptions)
@@ -1232,7 +1234,7 @@ type
     InsertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets: Boolean;
     PlaceOpenBraceOnNewLineForFunctions: Boolean;
     PlaceOpenBraceOnNewLineForControlBlocks: Boolean;
-    // property Item[s: String]: Variant {Boolean or Float or String};
+    // property Item[s: String]: Variant {Boolean or Integer or String};
   end;
 
   JOutputFile = class external
@@ -1252,7 +1254,8 @@ type
     function getCurrentDirectory: String;
   end;
 
-  TWriteFileCallback = procedure (fileName: String; data: String; writeByteOrderMark: Boolean; onError: procedure(message: String));
+  TWriteFileCallback = procedure (fileName: String; data: String;
+    writeByteOrderMark: Boolean; onError: procedure(message: String));
 
   JCancellationToken = class external
     function isCancellationRequested: Boolean;
@@ -1270,7 +1273,7 @@ type
 
   JTypePredicate = class external
     parameterName: String;
-    parameterIndex: Float;
+    parameterIndex: Integer;
     &type: JType;
   end;
 
@@ -1302,23 +1305,83 @@ type
     procedure increaseIndent;
     procedure decreaseIndent;
     procedure clear;
-    procedure trackSymbol(symbol: JSymbol; enclosingDeclaration: JNode; meaning: TSymbolFlags);
+    procedure trackSymbol(symbol: JSymbol); overload;
+    procedure trackSymbol(symbol: JSymbol; enclosingDeclaration: JNode); overload;
+    procedure trackSymbol(symbol: JSymbol; enclosingDeclaration: JNode;
+      meaning: TSymbolFlags); overload;
   end;
 
   JSymbolDisplayBuilder = class external
-    procedure buildTypeDisplay(&type: JType; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
-    procedure buildSymbolDisplay(symbol: JSymbol; writer: JSymbolWriter; enclosingDeclaration: JNode; meaning: TSymbolFlags; flags: TSymbolFormatFlags);
-    procedure buildSignatureDisplay(signatures: JSignature; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
-    procedure buildParameterDisplay(parameter: JSymbol; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
-    procedure buildTypeParameterDisplay(tp: JTypeParameter; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
-    procedure buildTypeParameterDisplayFromSymbol(symbol: JSymbol; writer: JSymbolWriter; enclosingDeclaraiton: JNode; flags: TTypeFormatFlags);
-    procedure buildDisplayForParametersAndDelimiters(parameters: array of JSymbol; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
-    procedure buildDisplayForTypeParametersAndDelimiters(typeParameters: array of JTypeParameter; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
-    procedure buildReturnTypeDisplay(signature: JSignature; writer: JSymbolWriter; enclosingDeclaration: JNode; flags: TTypeFormatFlags);
+    procedure buildTypeDisplay(&type: JType; writer: JSymbolWriter); overload;
+    procedure buildTypeDisplay(&type: JType; writer: JSymbolWriter;
+      enclosingDeclaration: JNode); overload;
+    procedure buildTypeDisplay(&type: JType; writer: JSymbolWriter;
+      enclosingDeclaration: JNode; flags: TTypeFormatFlags); overload;
+    procedure buildSymbolDisplay(symbol: JSymbol; writer: JSymbolWriter); overload;
+    procedure buildSymbolDisplay(symbol: JSymbol; writer: JSymbolWriter;
+      enclosingDeclaration: JNode); overload;
+    procedure buildSymbolDisplay(symbol: JSymbol; writer: JSymbolWriter;
+      enclosingDeclaration: JNode; meaning: TSymbolFlags); overload;
+    procedure buildSymbolDisplay(symbol: JSymbol; writer: JSymbolWriter;
+      enclosingDeclaration: JNode; meaning: TSymbolFlags;
+      flags: TSymbolFormatFlags); overload;
+    procedure buildSignatureDisplay(signatures: JSignature; writer: JSymbolWriter); overload;
+    procedure buildSignatureDisplay(signatures: JSignature; writer: JSymbolWriter;
+      enclosingDeclaration: JNode); overload;
+    procedure buildSignatureDisplay(signatures: JSignature; writer: JSymbolWriter;
+      enclosingDeclaration: JNode; flags: TTypeFormatFlags); overload;
+    procedure buildParameterDisplay(parameter: JSymbol; writer: JSymbolWriter); overload;
+    procedure buildParameterDisplay(parameter: JSymbol; writer: JSymbolWriter;
+      enclosingDeclaration: JNode); overload;
+    procedure buildParameterDisplay(parameter: JSymbol; writer: JSymbolWriter;
+      enclosingDeclaration: JNode; flags: TTypeFormatFlags); overload;
+    procedure buildTypeParameterDisplay(tp: JTypeParameter;
+      writer: JSymbolWriter); overload;
+    procedure buildTypeParameterDisplay(tp: JTypeParameter;
+      writer: JSymbolWriter; enclosingDeclaration: JNode); overload;
+    procedure buildTypeParameterDisplay(tp: JTypeParameter;
+      writer: JSymbolWriter; enclosingDeclaration: JNode;
+      flags: TTypeFormatFlags); overload;
+    procedure buildTypeParameterDisplayFromSymbol(symbol: JSymbol; writer: JSymbolWriter); overload;
+    procedure buildTypeParameterDisplayFromSymbol(symbol: JSymbol;
+      writer: JSymbolWriter; enclosingDeclaraiton: JNode); overload;
+    procedure buildTypeParameterDisplayFromSymbol(symbol: JSymbol;
+      writer: JSymbolWriter; enclosingDeclaraiton: JNode;
+      flags: TTypeFormatFlags); overload;
+    procedure buildDisplayForParametersAndDelimiters(
+      parameters: array of JSymbol; writer: JSymbolWriter); overload;
+    procedure buildDisplayForParametersAndDelimiters(
+      parameters: array of JSymbol; writer: JSymbolWriter; enclosingDeclaration: JNode); overload;
+    procedure buildDisplayForParametersAndDelimiters(
+      parameters: array of JSymbol; writer: JSymbolWriter;
+      enclosingDeclaration: JNode; flags: TTypeFormatFlags); overload;
+    procedure buildDisplayForTypeParametersAndDelimiters(
+      typeParameters: array of JTypeParameter; writer: JSymbolWriter); overload;
+    procedure buildDisplayForTypeParametersAndDelimiters(
+      typeParameters: array of JTypeParameter; writer: JSymbolWriter; enclosingDeclaration: JNode); overload;
+    procedure buildDisplayForTypeParametersAndDelimiters(
+      typeParameters: array of JTypeParameter; writer: JSymbolWriter;
+      enclosingDeclaration: JNode; flags: TTypeFormatFlags); overload;
+    procedure buildReturnTypeDisplay(signature: JSignature; writer: JSymbolWriter); overload;
+    procedure buildReturnTypeDisplay(signature: JSignature; writer: JSymbolWriter;
+      enclosingDeclaration: JNode); overload;
+    procedure buildReturnTypeDisplay(signature: JSignature; writer: JSymbolWriter;
+      enclosingDeclaration: JNode; flags: TTypeFormatFlags); overload;
   end;
 
   JCallLikeExpression = Variant;
   JJsxOpeningLikeElement = Variant;
+
+  JPropertyAccessExpression = class external(JMemberExpression)
+    expression: JLeftHandSideExpression;
+    dotToken: JNode;
+    name: JIdentifier;
+  end;
+
+  JElementAccessExpression = class external(JMemberExpression)
+    expression: JLeftHandSideExpression;
+    argumentExpression: JExpression; // nullable
+  end;
 
   JTypeChecker = class external
     function getTypeOfSymbolAtLocation(symbol: JSymbol; node: JNode): JType;
@@ -1333,20 +1396,28 @@ type
     function getSymbolAtLocation(node: JNode): JSymbol;
     function getShorthandAssignmentValueSymbol(location: JNode): JSymbol;
     function getTypeAtLocation(node: JNode): JType;
-    function typeToString(&type: JType; enclosingDeclaration: JNode; flags: TTypeFormatFlags): String;
-    function symbolToString(symbol: JSymbol; enclosingDeclaration: JNode; meaning: TSymbolFlags): String;
+    function typeToString(&type: JType): String; overload;
+    function typeToString(&type: JType; enclosingDeclaration: JNode): String; overload;
+    function typeToString(&type: JType; enclosingDeclaration: JNode; flags: TTypeFormatFlags): String; overload;
+    function symbolToString(symbol: JSymbol): String; overload;
+    function symbolToString(symbol: JSymbol; enclosingDeclaration: JNode): String; overload;
+    function symbolToString(symbol: JSymbol; enclosingDeclaration: JNode; meaning: TSymbolFlags): String; overload;
     function getSymbolDisplayBuilder: JSymbolDisplayBuilder;
     function getFullyQualifiedName(symbol: JSymbol): String;
     function getAugmentedPropertiesOfType(&type: JType): array of JSymbol;
     function getRootSymbols(symbol: JSymbol): array of JSymbol;
     function getContextualType(node: JExpression): JType;
-    function getResolvedSignature(node: JCallLikeExpression; candidatesOutArray: array of JSignature): JSignature;
+    function getResolvedSignature(node: JCallLikeExpression): JSignature; overload;
+    function getResolvedSignature(node: JCallLikeExpression; candidatesOutArray: array of JSignature): JSignature; overload;
     function getSignatureFromDeclaration(declaration: JSignatureDeclaration): JSignature;
     function isImplementationOfOverload(node: JFunctionLikeDeclaration): Boolean;
     function isUndefinedSymbol(symbol: JSymbol): Boolean;
     function isArgumentsSymbol(symbol: JSymbol): Boolean;
-    function getConstantValue(node: Variant {JEnumMember or JPropertyAccessExpression or JElementAccessExpression}): Float;
-    function isValidPropertyAccess(node: Variant {JPropertyAccessExpression or JQualifiedName}; propertyName: String): Boolean;
+    function getConstantValue(node: JEnumMember): Integer; overload;
+    function getConstantValue(node: JPropertyAccessExpression): Integer; overload;
+    function getConstantValue(node: JElementAccessExpression): Integer; overload;
+    function isValidPropertyAccess(node: JPropertyAccessExpression; propertyName: String): Boolean; overload;
+    function isValidPropertyAccess(node: JQualifiedName; propertyName: String): Boolean; overload;
     function getAliasedSymbol(symbol: JSymbol): JSymbol;
     function getExportsOfModule(moduleSymbol: JSymbol): array of JSymbol;
     function getJsxElementAttributesType(elementNode: JJsxOpeningLikeElement): JType;
@@ -1357,12 +1428,32 @@ type
   JProgram = class external(JScriptReferenceHost)
     function getRootFileNames: array of String;
     function getSourceFiles: array of JSourceFile;
-    function emit(targetSourceFile: JSourceFile; writeFile: TWriteFileCallback; cancellationToken: JCancellationToken): JEmitResult;
-    function getOptionsDiagnostics(cancellationToken: JCancellationToken): array of JDiagnostic;
-    function getGlobalDiagnostics(cancellationToken: JCancellationToken): array of JDiagnostic;
-    function getSyntacticDiagnostics(sourceFile: JSourceFile; cancellationToken: JCancellationToken): array of JDiagnostic;
-    function getSemanticDiagnostics(sourceFile: JSourceFile; cancellationToken: JCancellationToken): array of JDiagnostic;
-    function getDeclarationDiagnostics(sourceFile: JSourceFile; cancellationToken: JCancellationToken): array of JDiagnostic;
+    function emit: JEmitResult; overload;
+    function emit(targetSourceFile: JSourceFile): JEmitResult; overload;
+    function emit(targetSourceFile: JSourceFile;
+      writeFile: TWriteFileCallback): JEmitResult; overload;
+    function emit(targetSourceFile: JSourceFile; writeFile: TWriteFileCallback;
+      cancellationToken: JCancellationToken): JEmitResult; overload;
+    function getOptionsDiagnostics: array of JDiagnostic; overload;
+    function getOptionsDiagnostics(
+      cancellationToken: JCancellationToken): array of JDiagnostic; overload;
+    function getGlobalDiagnostics: array of JDiagnostic; overload;
+    function getGlobalDiagnostics(
+      cancellationToken: JCancellationToken): array of JDiagnostic; overload;
+    function getSyntacticDiagnostics: array of JDiagnostic; overload;
+    function getSyntacticDiagnostics(
+      sourceFile: JSourceFile): array of JDiagnostic; overload;
+    function getSyntacticDiagnostics(
+      sourceFile: JSourceFile; cancellationToken: JCancellationToken): array of JDiagnostic; overload;
+    function getSemanticDiagnostics: array of JDiagnostic; overload;
+    function getSemanticDiagnostics(
+      sourceFile: JSourceFile): array of JDiagnostic; overload;
+    function getSemanticDiagnostics(sourceFile: JSourceFile;
+      cancellationToken: JCancellationToken): array of JDiagnostic; overload;
+    function getDeclarationDiagnostics: array of JDiagnostic; overload;
+    function getDeclarationDiagnostics(sourceFile: JSourceFile): array of JDiagnostic; overload;
+    function getDeclarationDiagnostics(sourceFile: JSourceFile;
+      cancellationToken: JCancellationToken): array of JDiagnostic; overload;
     function getTypeChecker: JTypeChecker;
   end;
 
@@ -1371,34 +1462,58 @@ type
     function getSyntacticDiagnostics(fileName: String): array of JDiagnostic;
     function getSemanticDiagnostics(fileName: String): array of JDiagnostic;
     function getCompilerOptionsDiagnostics: array of JDiagnostic;
-    function getSyntacticClassifications(fileName: String; span: JTextSpan): array of JClassifiedSpan;
-    function getSemanticClassifications(fileName: String; span: JTextSpan): array of JClassifiedSpan;
-    function getEncodedSyntacticClassifications(fileName: String; span: JTextSpan): JClassifications;
-    function getEncodedSemanticClassifications(fileName: String; span: JTextSpan): JClassifications;
-    function getCompletionsAtPosition(fileName: String; position: Float): JCompletionInfo;
-    function getCompletionEntryDetails(fileName: String; position: Float; entryName: String): JCompletionEntryDetails;
-    function getQuickInfoAtPosition(fileName: String; position: Float): JQuickInfo;
-    function getNameOrDottedNameSpan(fileName: String; startPos: Float; endPos: Float): JTextSpan;
-    function getBreakpointStatementAtPosition(fileName: String; position: Float): JTextSpan;
-    function getSignatureHelpItems(fileName: String; position: Float): JSignatureHelpItems;
-    function getRenameInfo(fileName: String; position: Float): JRenameInfo;
-    function findRenameLocations(fileName: String; position: Float; findInStrings: Boolean; findInComments: Boolean): array of JRenameLocation;
-    function getDefinitionAtPosition(fileName: String; position: Float): array of JDefinitionInfo;
-    function getTypeDefinitionAtPosition(fileName: String; position: Float): array of JDefinitionInfo;
-    function getReferencesAtPosition(fileName: String; position: Float): array of JReferenceEntry;
-    function findReferences(fileName: String; position: Float): array of JReferencedSymbol;
-    function getDocumentHighlights(fileName: String; position: Float; filesToSearch: array of String): array of JDocumentHighlights;
-    function getOccurrencesAtPosition(fileName: String; position: Float): array of JReferenceEntry;
-    function getNavigateToItems(searchValue: String; maxResultCount: Float): array of JNavigateToItem;
+    function getSyntacticClassifications(fileName: String;
+      span: JTextSpan): array of JClassifiedSpan;
+    function getSemanticClassifications(fileName: String;
+      span: JTextSpan): array of JClassifiedSpan;
+    function getEncodedSyntacticClassifications(fileName: String;
+      span: JTextSpan): JClassifications;
+    function getEncodedSemanticClassifications(fileName: String;
+      span: JTextSpan): JClassifications;
+    function getCompletionsAtPosition(fileName: String; position: Integer): JCompletionInfo;
+    function getCompletionEntryDetails(fileName: String; position: Integer;
+      entryName: String): JCompletionEntryDetails;
+    function getQuickInfoAtPosition(fileName: String;
+      position: Integer): JQuickInfo;
+    function getNameOrDottedNameSpan(fileName: String; startPos,
+      endPos: Integer): JTextSpan;
+    function getBreakpointStatementAtPosition(fileName: String;
+      position: Integer): JTextSpan;
+    function getSignatureHelpItems(fileName: String;
+      position: Integer): JSignatureHelpItems;
+    function getRenameInfo(fileName: String; position: Integer): JRenameInfo;
+    function findRenameLocations(fileName: String; position: Integer;
+      findInStrings: Boolean; findInComments: Boolean): array of JRenameLocation;
+    function getDefinitionAtPosition(fileName: String;
+      position: Integer): array of JDefinitionInfo;
+    function getTypeDefinitionAtPosition(fileName: String;
+      position: Integer): array of JDefinitionInfo;
+    function getReferencesAtPosition(fileName: String;
+      position: Integer): array of JReferenceEntry;
+    function findReferences(fileName: String;
+      position: Integer): array of JReferencedSymbol;
+    function getDocumentHighlights(fileName: String; position: Integer;
+      filesToSearch: array of String): array of JDocumentHighlights;
+    function getOccurrencesAtPosition(fileName: String;
+      position: Integer): array of JReferenceEntry;
+    function getNavigateToItems(searchValue: String;
+      maxResultCount: Integer): array of JNavigateToItem;
     function getNavigationBarItems(fileName: String): array of JNavigationBarItem;
     function getOutliningSpans(fileName: String): array of JOutliningSpan;
-    function getTodoComments(fileName: String; descriptors: array of JTodoCommentDescriptor): array of JTodoComment;
-    function getBraceMatchingAtPosition(fileName: String; position: Float): array of JTextSpan;
-    function getIndentationAtPosition(fileName: String; position: Float; options: JEditorOptions): Float;
-    function getFormattingEditsForRange(fileName: String; start: Float; &end: Float; options: JFormatCodeOptions): array of JTextChange;
-    function getFormattingEditsForDocument(fileName: String; options: JFormatCodeOptions): array of JTextChange;
-    function getFormattingEditsAfterKeystroke(fileName: String; position: Float; key: String; options: JFormatCodeOptions): array of JTextChange;
-    function getDocCommentTemplateAtPosition(fileName: String; position: Float): JTextInsertion;
+    function getTodoComments(fileName: String;
+      descriptors: array of JTodoCommentDescriptor): array of JTodoComment;
+    function getBraceMatchingAtPosition(fileName: String;
+      position: Integer): array of JTextSpan;
+    function getIndentationAtPosition(fileName: String; position: Integer;
+      options: JEditorOptions): Integer;
+    function getFormattingEditsForRange(fileName: String; start,
+      &end: Integer; options: JFormatCodeOptions): array of JTextChange;
+    function getFormattingEditsForDocument(fileName: String;
+      options: JFormatCodeOptions): array of JTextChange;
+    function getFormattingEditsAfterKeystroke(fileName: String;
+      position: Integer; key: String; options: JFormatCodeOptions): array of JTextChange;
+    function getDocCommentTemplateAtPosition(fileName: String;
+      position: Integer): JTextInsertion;
     function getEmitOutput(fileName: String): JEmitOutput;
     function getProgram: JProgram;
     function getSourceFile(fileName: String): JSourceFile;
@@ -1406,7 +1521,7 @@ type
   end;
 
   JClassificationInfo = class external
-    length: Float;
+    length: Integer;
     classification: TTokenClass;
   end;
 
@@ -1416,11 +1531,91 @@ type
   end;
 
   JClassifier = class external
-    function getClassificationsForLine(text: String; lexState: TEndOfLineState; syntacticClassifierAbsent: Boolean): JClassificationResult;
-    function getEncodedLexicalClassifications(text: String; endOfLineState: TEndOfLineState; syntacticClassifierAbsent: Boolean): JClassifications;
+    function getClassificationsForLine(text: String; lexState: TEndOfLineState;
+      syntacticClassifierAbsent: Boolean): JClassificationResult;
+    function getEncodedLexicalClassifications(text: String;
+      endOfLineState: TEndOfLineState;
+      syntacticClassifierAbsent: Boolean): JClassifications;
+  end;
+
+  JModuleResolutionHost = class external
+    function fileExists(fileName: String): Boolean;
+    function readFile(fileName: String): String;
+  end;
+
+  TCompilerHostCallback = procedure(message: String);
+
+  JCompilerHost = class external(JModuleResolutionHost)
+    function getSourceFile(fileName: String; languageVersion: TScriptTarget;
+      onError: TCompilerHostCallback): JSourceFile;
+    function getCancellationToken: JCancellationToken;
+    function getDefaultLibFileName(options: JCompilerOptions): String;
+//    writeFile: TWriteFileCallback;
+    function getCurrentDirectory: String;
+    function getCanonicalFileName(fileName: String): String;
+    function useCaseSensitiveFileNames: Boolean;
+    function getNewLine: String;
+    function resolveModuleNames(moduleNames: array of String;
+      containingFile: String): array of JResolvedModule;
+  end;
+
+  TGetCanonicalFileName = function(fileName: String): String;
+  TReadFileCallback = function(path: String): String;
+
+  JParsedCommandLine = class external
+    options: JCompilerOptions;
+    fileNames: array of String;
+    errors: array of JDiagnostic;
+  end;
+
+  TNodeCallback = function (node: JNode): Variant;
+  TNodeArrayCallback = function (nodes: array of JNode): Variant;
+
+  JDiagnosticMessageChain = class external
+    messageText: String;
+    category: TDiagnosticCategory;
+    code: Integer;
+    next: JDiagnosticMessageChain; // nullable
+  end;
+
+  TConfigFileResult = record
+    config: Variant; // nullable
+    error: JDiagnostic; // nullable
+  end;
+
+  TWatchFileCallback = procedure(path: String);
+
+  JFileWatcher = class external
+    procedure close;
+  end;
+
+  JSystem = class external
+    args: array of String;
+    newLine: String;
+    useCaseSensitiveFileNames: Boolean;
+    procedure write(s: String);
+    function readFile(path: String): String; overload;
+    function readFile(path: String; encoding: String): String; overload;
+    procedure writeFile(path: String; data: String); overload;
+    procedure writeFile(path: String; data: String; writeByteOrderMark: Boolean); overload;
+    function watchFile(path: String; callback: TWatchFileCallback): JFileWatcher;
+    function resolvePath(path: String): String;
+    function fileExists(path: String): Boolean;
+    function directoryExists(path: String): Boolean;
+    procedure createDirectory(path: String);
+    function getExecutingFilePath: String;
+    function getCurrentDirectory: String;
+    function readDirectory(path: String): array of String; overload;
+    function readDirectory(path: String; extension: String): array of String; overload;
+    function readDirectory(path: String; extension: String; _exclude: array of String): array of String; overload;
+    function getMemoryUsage: Integer;
+    procedure &exit; overload;
+    procedure &exit(exitCode: Integer); overload;
   end;
 
   JTypeScriptExport = class external
+    sys: JSystem;
+
     function tokenToString(t: TSyntaxKind): string; external;
     function getPositionOfLineAndCharacter(sourceFile: JSourceFile; line, character: Integer): Integer; external;
     function getLineAndCharacterOfPosition(sourceFile: JSourceFile; position: Integer): JLineAndCharacter; external;
@@ -1434,27 +1629,129 @@ type
     function getShebang(text: string): string; external;
     function isIdentifierStart(ch: Integer; languageVersion: TScriptTarget): Boolean; external;
     function isIdentifierPart(ch: Integer; languageVersion: TScriptTarget): Boolean; external;
-    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean): JScanner; overload; external;
-    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean; languageVariant: TLanguageVariant): JScanner; overload; external;
-    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean; languageVariant: TLanguageVariant; text: string): JScanner; overload; external;
-    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean; languageVariant: TLanguageVariant; text: string; onError: TErrorCallback): JScanner; overload; external;
-    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean; languageVariant: TLanguageVariant; text: string; onError: TErrorCallback; start: Integer): JScanner; overload; external;
-    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean; languageVariant: TLanguageVariant; text: string; onError: TErrorCallback; start, _length: Integer): JScanner; overload; external;
+    function createScanner(languageVersion: TScriptTarget;
+      skipTrivia: Boolean): JScanner; overload; external;
+    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean;
+      languageVariant: TLanguageVariant): JScanner; overload; external;
+    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean;
+      languageVariant: TLanguageVariant; text: string): JScanner; overload; external;
+    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean;
+      languageVariant: TLanguageVariant; text: string;
+      onError: TErrorCallback): JScanner; overload; external;
+    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean;
+      languageVariant: TLanguageVariant; text: string; onError: TErrorCallback;
+      start: Integer): JScanner; overload; external;
+    function createScanner(languageVersion: TScriptTarget; skipTrivia: Boolean;
+      languageVariant: TLanguageVariant; text: string; onError: TErrorCallback;
+      start, _length: Integer): JScanner; overload; external;
 
-    function createSourceFile(fileName, sourceText: String; languageVersion: TScriptTarget): JSourceFile; overload;
-    function createSourceFile(fileName, sourceText: String; languageVersion: TScriptTarget; setParentNodes: Boolean): JSourceFile; overload;
+    function createSourceFile(fileName, sourceText: String;
+      languageVersion: TScriptTarget): JSourceFile; overload;
+    function createSourceFile(fileName, sourceText: String;
+      languageVersion: TScriptTarget; setParentNodes: Boolean): JSourceFile; overload;
 
-    function displayPartsToString(displayParts: array of JSymbolDisplayPart): String;
+    function textSpanEnd(span: JTextSpan): Integer;
+    function textSpanIsEmpty(span: JTextSpan): Boolean;
+    function textSpanContainsPosition(span: JTextSpan; position: Integer): Boolean;
+    function textSpanContainsTextSpan(span, other: JTextSpan): Boolean;
+    function textSpanOverlapsWith(span, other: JTextSpan): Boolean;
+    function textSpanOverlap(span1, span2: JTextSpan): JTextSpan;
+    function textSpanIntersectsWithTextSpan(span, other: JTextSpan): Boolean;
+    function textSpanIntersectsWith(span: JTextSpan; start, _length: Integer): Boolean;
+    function decodedTextSpanIntersectsWith(start1, length1, length2: Integer): Boolean;
+    function textSpanIntersectsWithPosition(span: JTextSpan; position: Integer): Boolean;
+    function textSpanIntersection(span1, span2: JTextSpan): JTextSpan;
+    function createTextSpan(start, _length: Integer): JTextSpan;
+    function createTextSpanFromBounds(start, &end: Integer): JTextSpan;
+    function textChangeRangeNewSpan(range: JTextChangeRange): JTextSpan;
+    function textChangeRangeIsUnchanged(range: JTextChangeRange): Boolean;
+    function createTextChangeRange(span: JTextSpan;
+      newLength: Integer): JTextChangeRange;
+    function collapseTextChangeRangesAcrossMultipleVersions(
+      changes: array of JTextChangeRange): JTextChangeRange;
+    function getTypeParameterOwner(d: JDeclaration): JDeclaration;
+
+    function createNode(kind: TSyntaxKind): JNode;
+    function forEachChild(node: JNode; cbNode: TNodeCallback;
+      cbNodeArray: TNodeArrayCallback): Variant;
+    function updateSourceFile(sourceFile: JSourceFile; newText: String;
+      textChangeRange: JTextChangeRange): JSourceFile; overload;
+    function updateSourceFile(sourceFile: JSourceFile; newText: String;
+      textChangeRange: JTextChangeRange; aggressiveChecks: Boolean): JSourceFile; overload;
+
+    function findConfigFile(searchPath: String): String;
+    function resolveTripleslashReference(moduleName: String; containingFile: String): String;
+    function resolveModuleName(moduleName: String; containingFile: String;
+      compilerOptions: JCompilerOptions;
+      host: JModuleResolutionHost): JResolvedModuleWithFailedLookupLocations;
+    function nodeModuleNameResolver(moduleName: String; containingFile: String;
+      host: JModuleResolutionHost): JResolvedModuleWithFailedLookupLocations;
+    function classicNameResolver(moduleName: String; containingFile: String;
+      compilerOptions: JCompilerOptions;
+      host: JModuleResolutionHost): JResolvedModuleWithFailedLookupLocations;
+    function createCompilerHost(options: JCompilerOptions;
+      setParentNodes: Boolean): JCompilerHost; overload;
+    function createCompilerHost(options: JCompilerOptions): JCompilerHost; overload;
+    function getPreEmitDiagnostics(program: JProgram): array of JDiagnostic; overload;
+    function getPreEmitDiagnostics(program: JProgram;
+      sourceFile: JSourceFile): array of JDiagnostic; overload;
+    function getPreEmitDiagnostics(program: JProgram; sourceFile: JSourceFile;
+      cancellationToken: JCancellationToken): array of JDiagnostic; overload;
+    function flattenDiagnosticMessageText(messageText: String;
+      newLine: String): String; overload;
+    function flattenDiagnosticMessageText(messageText: JDiagnosticMessageChain;
+      newLine: String): String; overload;
+    function createProgram(rootNames: array of String;
+      options: JCompilerOptions): JProgram; overload;
+    function createProgram(rootNames: array of String;
+      options: JCompilerOptions; host: JCompilerHost): JProgram; overload;
+    function createProgram(rootNames: array of String;
+      options: JCompilerOptions; host: JCompilerHost;
+      oldProgram: JProgram): JProgram; overload;
+
+    function parseCommandLine(commandLine: array of String): JParsedCommandLine; overload;
+    function parseCommandLine(commandLine: array of String;
+      readFile: TReadFileCallback): JParsedCommandLine;  overload;
+    function readConfigFile(fileName: String): TConfigFileResult;
+    function parseConfigFileText(fileName: String;
+      jsonText: String): TConfigFileResult;
+
+    function displayPartsToString(
+      displayParts: array of JSymbolDisplayPart): String;
     function getDefaultCompilerOptions: JCompilerOptions;
-    function transpileModule(input: String; transpileOptions: JTranspileOptions): JTranspileOutput;
-    function transpile(input: String; compilerOptions: JCompilerOptions; fileName: String; diagnostics: array of JDiagnostic; moduleName: String): String;
-    //function createLanguageServiceSourceFile(fileName: String; scriptSnapshot: JIScript; SnapshotscriptTarget: JScriptTargetversion: String; setNodeParents: Boolean): JSourceFile;
-    function updateLanguageServiceSourceFile(sourceFile: JSourceFile; scriptSnapshot: JIScriptSnapshot; version: String; textChangeRange: JTextChangeRange; aggressiveChecks: Boolean): JSourceFile;
-    //function createGetCanonicalFileName(useCaseSensitivefileNames: Boolean): (fileName: String): String;
-    function createDocumentRegistry(useCaseSensitiveFileNames: Boolean): JDocumentRegistry;
-    function preProcessFile(sourceText: String; readImportFiles: Boolean): JPreProcessedFileInfo;
-    function createLanguageService(host: JLanguageServiceHost; documentRegistry: JDocumentRegistry): JLanguageService;
+    function transpileModule(input: String;
+      transpileOptions: JTranspileOptions): JTranspileOutput;
+    function transpile(input: String): String; overload;
+    function transpile(input: String; compilerOptions: JCompilerOptions): String; overload;
+    function transpile(input: String; compilerOptions: JCompilerOptions;
+      fileName: String): String; overload;
+    function transpile(input: String; compilerOptions: JCompilerOptions;
+      fileName: String; diagnostics: array of JDiagnostic): String; overload;
+    function transpile(input: String; compilerOptions: JCompilerOptions;
+      fileName: String; diagnostics: array of JDiagnostic; moduleName: String): String; overload;
+//    function createLanguageServiceSourceFile(fileName: String; scriptSnapshot: JIScript; SnapshotscriptTarget: JScriptTargetversion: String; setNodeParents: Boolean): JSourceFile;
+    function updateLanguageServiceSourceFile(sourceFile: JSourceFile;
+      scriptSnapshot: JIScriptSnapshot; version: String;
+      textChangeRange: JTextChangeRange; aggressiveChecks: Boolean): JSourceFile;
+    function createGetCanonicalFileName(
+      useCaseSensitivefileNames: Boolean): TGetCanonicalFileName;
+    function createDocumentRegistry: JDocumentRegistry; overload;
+    function createDocumentRegistry(
+      useCaseSensitiveFileNames: Boolean): JDocumentRegistry; overload;
+    function preProcessFile(sourceText: String): JPreProcessedFileInfo; overload;
+    function preProcessFile(sourceText: String;
+      readImportFiles: Boolean): JPreProcessedFileInfo; overload;
+    function createLanguageService(host: JLanguageServiceHost): JLanguageService; overload;
+    function createLanguageService(host: JLanguageServiceHost;
+      documentRegistry: JDocumentRegistry): JLanguageService; overload;
     function createClassifier: JClassifier;
+
+    (*
+      Get the path of the default library files (lib.d.ts) as distributed with
+      the typescript node package.
+      The functionality is not supported if the ts module is consumed outside
+      of a node module.
+    *)
     function getDefaultLibFilePath(options: JCompilerOptions): String;
   end;
 
