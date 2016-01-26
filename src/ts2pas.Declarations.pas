@@ -201,6 +201,13 @@ type
     property Members: array of TCustomTypeMember;
   end;
 
+  TTupleType = class(TCustomType)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Types: array of TCustomType;
+  end;
+
   TFieldDeclaration = class(TCustomTypeMember)
   protected
     function GetAsCode: String; override;
@@ -908,6 +915,14 @@ begin
 end;
 
 
+{ TTupleType }
+
+function TTupleType.GetAsCode: String;
+begin
+  Result := 'TupletType';
+end;
+
+
 { TImportDeclaration }
 
 function TImportDeclaration.GetAsCode: String;
@@ -1011,9 +1026,16 @@ begin
     Result += ': ' + &Type.AsCode;
 end;
 
+function IsIdenticalParameterType(A, B: TParameter): Boolean;
+begin
+  Result := Assigned(A.&Type) xor Assigned(A.&Type);
+  if Result and Assigned(A.&Type) then
+    Result := A.&Type.AsCode = B.&Type.AsCode;
+end;
+
 function TCallSignature.GetAsCodeWithOptionalLevel(OptionalLevel: Integer): String;
 var
-  OmitType: Boolean;
+  CanOmitType: Boolean;
 begin
   var CurrentOptionalLevel := 0;
   if ParameterList.Count > 0 then
@@ -1022,9 +1044,18 @@ begin
     if not (ParameterList[0].IsOptional and (OptionalLevel = 0)) then
     begin
       CurrentOptionalLevel += Integer(ParameterList[0].IsOptional);
-      OmitType := (1 < ParameterList.Count) and (ParameterList[0].&Type.AsCode = ParameterList[1].&Type.AsCode)
+
+      // ensure at least two parameter are available
+      CanOmitType := (ParameterList.Count >= 2)
+
+      // ensure that both have a type
+        and IsIdenticalParameterType(ParameterList[0], ParameterList[1])
+
+      // ensure that the current type is optional and that there is still some budget
         and (not ParameterList[0].IsOptional or (CurrentOptionalLevel < OptionalLevel));
-      Result := '(' + ParameterList[0].AsCode[OmitType];
+
+
+      Result := '(' + ParameterList[0].AsCode[CanOmitType];
 
       for var Index := Low(ParameterList) + 1 to High(ParameterList) do
       begin
@@ -1036,14 +1067,14 @@ begin
         CurrentOptionalLevel += Integer(ParameterList[Index].IsOptional);
 
         // add separator
-        Result += if OmitType then ', ' else '; ';
+        Result += if CanOmitType then ', ' else '; ';
 
         // check if current type is needed
-        OmitType := (Index + 1 < ParameterList.Count) and
-          (ParameterList[Index].&Type.AsCode = ParameterList[Index + 1].&Type.AsCode)
+        CanOmitType := (Index + 1 < ParameterList.Count) and
+          IsIdenticalParameterType(ParameterList[Index], ParameterList[Index + 1])
           and (not ParameterList[Index].IsOptional or (CurrentOptionalLevel < OptionalLevel));
 
-        Result += ParameterList[Index].AsCode[OmitType];
+        Result += ParameterList[Index].AsCode[CanOmitType];
       end;
       Result += ')';
     end;
@@ -1051,31 +1082,6 @@ begin
 
   if Assigned(&Type) then
     Result += ': ' + &Type.AsCode;
-
-(*
-  var CurrentOptionalLevel := 0;
-  if ParameterList.Count > 0 then
-  begin
-    // check if the first parameter isn't optional and there is no budget
-    if not (ParameterList[0].IsOptional and (OptionalLevel = 0)) then
-    begin
-      Result := '(' + ParameterList[0].AsCode;
-      CurrentOptionalLevel += Integer(ParameterList[0].IsOptional);
-      for var Index := Low(ParameterList) + 1 to High(ParameterList) do
-      begin
-        // check if optional level is reached
-        if ParameterList[Index].IsOptional and (CurrentOptionalLevel >= OptionalLevel) then
-          break;
-        Result += '; ' + ParameterList[Index].AsCode;
-        CurrentOptionalLevel += Integer(ParameterList[Index].IsOptional);
-      end;
-      Result += ')';
-    end;
-  end;
-
-  if Assigned(&Type) then
-    Result += ': ' + &Type.AsCode;
-*)
 end;
 
 
@@ -1286,28 +1292,104 @@ end;
 
 function TAmbientConstructorDeclaration.GetAsCode: String;
 begin
-   Result := GetIndentionString + 'constructor';
+  Result := GetIndentionString + 'constructor Create';
+
+  if ParameterList.Length > 0 then
+  begin
+    Result += '(';
+    for var Index := Low(ParameterList) to High(ParameterList) - 1 do
+      Result += ParameterList[Index].AsCode[False] + '; ';
+    Result += ParameterList[High(ParameterList)].AsCode[False] + ')';
+    Result += ')';
+  end;
+
+  Result += ';' + CRLF;
 end;
+
 
 { TAmbientClassDeclaration }
 
 function TAmbientClassDeclaration.GetAsCode: String;
 begin
+  Result += GetIndentionString + 'J' + Name + ' = class external ''' + Name + '''';
+  if Extends.Count > 0 then
+  begin
+    Result += '(';
+    Result += Extends[0].AsCode;
+    for var Index := Low(Extends) + 1 to High(Extends) do
+      Result += ', ' + Extends[Index].AsCode;
+    Result += ')';
+  end;
+  Result += CRLF;
 
+  var LastVisibility := vPublic;
+
+  BeginIndention;
+  for var Member in Members do
+  begin
+    var CurrentVisibility := if Member is TAmbientPropertyMemberDeclaration then
+      TAmbientPropertyMemberDeclaration(Member).Visibility else vPublic;
+    if LastVisibility <> CurrentVisibility then
+    begin
+      EndIndention;
+      Result += GetIndentionString;
+      case CurrentVisibility of
+        vPublic:
+          Result += 'public' + CRLF;
+        vProtected:
+          Result += 'protected' + CRLF;
+        vPrivate:
+          Result += 'private' + CRLF;
+      end;
+      BeginIndention;
+
+      LastVisibility := CurrentVisibility;
+    end;
+    Result += Member.AsCode;
+  end;
+  EndIndention;
+
+  Result += GetIndentionString + 'end;' + CRLF + CRLF;
 end;
 
 { TAmbientPropertyMemberDeclarationProperty }
 
 function TAmbientPropertyMemberDeclarationProperty.GetAsCode: String;
 begin
+  Result := GetIndentionString;
+  if IsStatic then
+    Result += 'class var ';
+  Result += Escape(Name);
 
+  Result +=  ': ' + if Assigned(&Type) then &Type.AsCode else 'Variant';
+
+  // line break
+  Result += ';' + CRLF;
 end;
 
 { TAmbientPropertyMemberDeclarationMethod }
 
 function TAmbientPropertyMemberDeclarationMethod.GetAsCode: String;
+var
+  Head: string;
+  Foot: string;
 begin
+  var OptionalParameterCount := 0;
+  for var Parameter in CallSignature.ParameterList do
+    if Parameter.IsOptional then
+      Inc(OptionalParameterCount);
 
+  Head := GetIndentionString;
+
+  Head += if Assigned(CallSignature.&Type) then 'function' else 'procedure';
+  Head += ' ' + Escape(Name);
+
+  Foot := ';' + if OptionalParameterCount > 0 then ' overload;';
+  Foot += CRLF;
+
+  Result := '';
+  for var i := 0 to OptionalParameterCount do
+    Result += Head + CallSignature.AsCode[i] + Foot;
 end;
 
 end.

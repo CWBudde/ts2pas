@@ -1,6 +1,20 @@
 uses
   ts2pas.Main;
 
+ConvertFile('TypeScriptDefs/d3');
+ConvertFile('TypeScriptDefs/easeljs');
+ConvertFile('TypeScriptDefs/google.maps');
+ConvertFile('TypeScriptDefs/jquery');
+ConvertFile('TypeScriptDefs/jquerymobile');
+ConvertFile('TypeScriptDefs/mongodb');
+ConvertFile('TypeScriptDefs/phonegap');
+ConvertFile('TypeScriptDefs/preloadjs');
+ConvertFile('TypeScriptDefs/socket.io');
+ConvertFile('TypeScriptDefs/soundjs');
+ConvertFile('TypeScriptDefs/three');
+ConvertFile('TypeScriptDefs/tweenjs');
+
+(*
 ConvertFile('TypeScriptDefs/abs');
 ConvertFile('TypeScriptDefs/absolute');
 ConvertFile('TypeScriptDefs/accounting');
