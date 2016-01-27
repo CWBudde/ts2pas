@@ -17,7 +17,7 @@ At the moment the tool is not ready for productional use. Moreover, the produced
 
 ## Tested definitions
 
-The following TypeScript definitions have been tested to work:
+The following TypeScript definitions have been tested to work (in terms of a simple translation and not it terms to produce a header that works without manual post processing):
 
 * abs
 * absolute
@@ -28,29 +28,52 @@ The following TypeScript definitions have been tested to work:
 * amplifyjs
 * box2dweb
 * d3
+* devextreme
 * dijit
+* dojo
 * easeljs
+* ember
 * ExtJS
+* fabricjs
 * flot
+* gruntjs
 * jquery
 * jquerymobile
+* kendo-ui
 * LeapMotionTS
 * linq
 * matter-js
 * node
+* office-js
 * phonegap
+* plottable
 * preloadjs
+* SenchaTouch
 * socket.io
 * soundjs
 * three
 * tweenjs
 * typescript
+* ui-grid
+* webix
+* winjs
+* winrt
 
 The following TypeScript definitions still fail for sure:
 
 * angular
+* baconjs
+* browserify
+* evernote
+* fhir
+* goJS
 * google.maps
+* gulp
+* leaflet
+* lodash
 * mongodb
+* sugar
+* titanium
 
 
 ## Release History

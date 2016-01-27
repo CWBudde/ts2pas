@@ -208,13 +208,28 @@ type
     property Types: array of TCustomType;
   end;
 
+  TIndexSignature = class(TCustomTypeMember)
+  protected
+    function GetAsCode: String; override;
+  public
+    property IsStringIndex: Boolean;
+    property &Type: TCustomType;
+  end;
+
   TClassTypeMember = class(TCustomTypeMember)
   public
     property Visibility: TVisibility;
     property IsStatic: Boolean;
   end;
 
-  TFieldDeclaration = class(TClassTypeMember)
+  TIndexMemberDeclaration = class(TClassTypeMember)
+  protected
+    function GetAsCode: String; override;
+  public
+    property IndexSignature: TIndexSignature;
+  end;
+
+  TPropertyMemberDeclaration = class(TClassTypeMember)
   protected
     function GetAsCode: String; override;
   public
@@ -257,14 +272,6 @@ type
     property &Type: TCustomType;
   end;
 
-  TIndexDeclaration = class(TClassTypeMember)
-  protected
-    function GetAsCode: String; override;
-  public
-    property IsStringIndex: Boolean;
-    property &Type: TCustomType;
-  end;
-
   TMethodDeclaration = class(TClassTypeMember)
   protected
     function GetAsCode: String; override;
@@ -286,7 +293,7 @@ type
   protected
     function GetAsCode: String; override;
   public
-    property Implements: array of String;
+    property Implements: array of TTypeReference;
     property Members: array of TCustomTypeMember;
   end;
 
@@ -794,29 +801,6 @@ begin
 end;
 
 
-{ TFieldDeclaration }
-
-function TFieldDeclaration.GetAsCode: String;
-begin
-  Result := GetIndentionString + Escape(Name);
-
-  if TypeArguments.Count > 0 then
-  begin
-    Result += '{<';
-    for var Argument in TypeArguments do
-      Result += Argument.AsCode;
-    Result += '>}';
-  end;
-
-  Result += ': ' + &Type.AsCode + ';';
-  if Nullable then
-    Result += ' // nullable';
-
-  // line break
-  Result += CRLF;
-end;
-
-
 { TConstructorDeclaration }
 
 function TConstructorDeclaration.GetAsCode: String;
@@ -831,9 +815,42 @@ begin
 end;
 
 
-{ TIndexDeclaration }
+{ TPropertyMemberDeclaration }
 
-function TIndexDeclaration.GetAsCode: String;
+function TPropertyMemberDeclaration.GetAsCode: String;
+begin
+  Result := GetIndentionString + Escape(Name);
+
+  if TypeArguments.Count > 0 then
+  begin
+    Result += '{<';
+    for var Argument in TypeArguments do
+      Result += Argument.AsCode;
+    Result += '>}';
+  end;
+
+  Result += ': ';
+  Result += if Assigned(&Type) then &Type.AsCode else 'Variant';
+  Result += ';';
+  if Nullable then
+    Result += ' // nullable';
+
+  // line break
+  Result += CRLF;
+end;
+
+
+{ TIndexMemberDeclaration }
+
+function TIndexMemberDeclaration.GetAsCode: String;
+begin
+  Result := IndexSignature.GetAsCode + ';' + CRLF;
+end;
+
+
+{ TIndexSignature }
+
+function TIndexSignature.GetAsCode: String;
 begin
   Result := GetIndentionString + '// ';
   Result += 'property Item[' + Name + ': ';
@@ -1406,5 +1423,6 @@ begin
   for var i := 0 to OptionalParameterCount do
     Result += Head + CallSignature.AsCode[i] + Foot;
 end;
+
 
 end.
