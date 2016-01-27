@@ -15,7 +15,8 @@ var FileSystem := fs;
 
 procedure ConvertFile(InputFile, OutputFile: String); overload;
 begin
-  if InputFile = InputFile.Split('.')[0] then
+  var InputName := InputFile.Before('.d.ts');
+  if InputFile = InputName then
     InputFile += '.d.ts';
 
   FileSystem.readFile(InputFile, lambda(err: Variant; data: JNodeBuffer)
@@ -28,7 +29,7 @@ begin
     {$ENDIF}
 
     var Translator := TTranslator.Create;
-    Translator.Name := InputFile.Split('.')[0];
+    Translator.Name := InputName;
     var OutputText := Translator.Translate(InputText);
 
     FileSystem.writeFile(OutputFile, OutputText, lambda(err: Variant)
@@ -45,7 +46,7 @@ end;
 
 procedure ConvertFile(InputFile: String); overload;
 begin
-  ConvertFile(InputFile, InputFile.Split('.')[0] + '.pas');
+  ConvertFile(InputFile, InputFile.Before('.d.ts') + '.pas');
 end;
 
 function DelintNode(Node: JNode): Variant;
@@ -78,7 +79,7 @@ end;
 
 procedure OutputAst(InputFile: String);
 begin
-  if InputFile = InputFile.Split('.')[0] then
+  if InputFile = InputFile.Before('.d.ts') then
     InputFile += '.d.ts';
 
   FileSystem.readFile(InputFile, lambda(err: Variant; data: JNodeBuffer)

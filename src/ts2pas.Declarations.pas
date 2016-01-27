@@ -208,7 +208,13 @@ type
     property Types: array of TCustomType;
   end;
 
-  TFieldDeclaration = class(TCustomTypeMember)
+  TClassTypeMember = class(TCustomTypeMember)
+  public
+    property Visibility: TVisibility;
+    property IsStatic: Boolean;
+  end;
+
+  TFieldDeclaration = class(TClassTypeMember)
   protected
     function GetAsCode: String; override;
   public
@@ -243,7 +249,7 @@ type
     property Arguments: array of TTypeArgument;
   end;
 
-  TConstructorDeclaration = class(TCustomTypeMember)
+  TConstructorDeclaration = class(TClassTypeMember)
   protected
     function GetAsCode: String; override;
   public
@@ -251,7 +257,7 @@ type
     property &Type: TCustomType;
   end;
 
-  TIndexDeclaration = class(TCustomTypeMember)
+  TIndexDeclaration = class(TClassTypeMember)
   protected
     function GetAsCode: String; override;
   public
@@ -259,14 +265,7 @@ type
     property &Type: TCustomType;
   end;
 
-  TMethodDeclaration = class(TCustomTypeMember)
-  protected
-    function GetAsCode: String; override;
-  public
-    property &Type: TFunctionType;
-  end;
-
-  TCallbackDeclaration = class(TCustomTypeMember)
+  TMethodDeclaration = class(TClassTypeMember)
   protected
     function GetAsCode: String; override;
   public
@@ -297,8 +296,7 @@ type
   public
   end;
 
-
-  TCallSignature = class(TCustomDeclaration)
+  TCallSignature = class(TCustomTypeMember)
   protected
     function GetAsCode: String; override;
     function GetAsCodeWithOptionalLevel(OptionalLevel: Integer): String; overload;
@@ -487,9 +485,14 @@ end;
 function TUnionType.GetAsCode: String;
 begin
   Result := 'Variant {';
+
   for var Index := Low(Types) to High(Types) - 1 do
     Result += Types[Index].AsCode + ' or ';
-  Result += Types[High(Types)].AsCode + '}';
+
+  var LastType := Types[High(Types)];
+  Result += if Assigned(LastType) then LastType.AsCode else 'void';
+
+  Result += '}';
 end;
 
 
@@ -578,9 +581,16 @@ begin
     Result += ': ' + ResultType.AsCode;
 end;
 
+function IsIdenticalFunctionParameterType(A, B: TFunctionParameter): Boolean;
+begin
+  Result := Assigned(A.&Type) xor Assigned(A.&Type);
+  if Result and Assigned(A.&Type) then
+    Result := A.&Type.AsCode = B.&Type.AsCode;
+end;
+
 function TFunctionType.GetAsCodeWithOptionalLevel(OptionalLevel: Integer): String;
 var
-  OmitType: Boolean;
+  CanOmitType: Boolean;
 begin
   var CurrentOptionalLevel := 0;
   if ParameterList.Count > 0 then
@@ -589,9 +599,17 @@ begin
     if not (ParameterList[0].IsOptional and (OptionalLevel = 0)) then
     begin
       CurrentOptionalLevel += Integer(ParameterList[0].IsOptional);
-      OmitType := (1 < ParameterList.Count) and (ParameterList[0].&Type.AsCode = ParameterList[1].&Type.AsCode)
+
+      // ensure at least two parameter are available
+      CanOmitType := (ParameterList.Count >= 2)
+
+      // ensure that both have a type
+        and IsIdenticalFunctionParameterType(ParameterList[0], ParameterList[1])
+
+      // ensure that the current type is optional and that there is still some budget
         and (not ParameterList[0].IsOptional or (CurrentOptionalLevel < OptionalLevel));
-      Result := '(' + ParameterList[0].AsCode[OmitType];
+
+      Result := '(' + ParameterList[0].AsCode[CanOmitType];
 
       for var Index := Low(ParameterList) + 1 to High(ParameterList) do
       begin
@@ -603,14 +621,14 @@ begin
         CurrentOptionalLevel += Integer(ParameterList[Index].IsOptional);
 
         // add separator
-        Result += if OmitType then ', ' else '; ';
+        Result += if CanOmitType then ', ' else '; ';
 
         // check if current type is needed
-        OmitType := (Index + 1 < ParameterList.Count) and
-          (ParameterList[Index].&Type.AsCode = ParameterList[Index + 1].&Type.AsCode)
+        CanOmitType := (Index + 1 < ParameterList.Count) and
+          IsIdenticalFunctionParameterType(ParameterList[0], ParameterList[1])
           and (not ParameterList[Index].IsOptional or (CurrentOptionalLevel < OptionalLevel));
 
-        Result += ParameterList[Index].AsCode[OmitType];
+        Result += ParameterList[Index].AsCode[CanOmitType];
       end;
       Result += ')';
     end;
@@ -849,20 +867,6 @@ begin
 end;
 
 
-{ TCallbackDeclaration }
-
-function TCallbackDeclaration.GetAsCode: String;
-begin
-  Result := GetIndentionString + 'callback ' + Name;
-
-  if Assigned(&Type) then
-    Result += &Type.AsCode[&Type.ParameterList.Count];
-
-  // line break
-  Result += ';' + CRLF;
-end;
-
-
 { TFunctionParameter }
 
 function TFunctionParameter.GetAsCode: String;
@@ -943,6 +947,8 @@ end;
 
 function TModuleDeclaration.GetAsCode: String;
 begin
+  Result := '';
+
   // classes and interfaces
   if Classes.Count + Interfaces.Count > 0 then
   begin
@@ -1197,6 +1203,8 @@ end;
 
 function TClassDeclaration.GetAsCode: String;
 begin
+  {$IFDEF DEBUG} Console.Log('Write interface: ' + Name); {$ENDIF}
+
   Result += GetIndentionString + 'J' + Name + ' = class external ''' + Name + '''';
   if Extends.Count > 0 then
   begin
@@ -1220,6 +1228,8 @@ end;
 
 function TInterfaceDeclaration.GetAsCode: String;
 begin
+  {$IFDEF DEBUG} Console.Log('Write interface: ' + Name); {$ENDIF}
+
   Result += GetIndentionString + 'J' + Name;
 
   if TypeParameters.Length > 0 then
@@ -1264,7 +1274,10 @@ end;
 
 function TTypeArgument.GetAsCode: String;
 begin
-  Result := &Type.AsCode;;
+  if Assigned(&Type) then
+    Result := &Type.AsCode
+  else
+    Result := 'Variant';
 end;
 
 
@@ -1311,6 +1324,8 @@ end;
 
 function TAmbientClassDeclaration.GetAsCode: String;
 begin
+  {$IFDEF DEBUG} Console.Log('Write class: ' + Name); {$ENDIF}
+
   Result += GetIndentionString + 'J' + Name + ' = class external ''' + Name + '''';
   if Extends.Count > 0 then
   begin

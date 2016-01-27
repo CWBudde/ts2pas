@@ -2,7 +2,7 @@
   <Project version="2" subversion="0">
     <Name>ts2pas</Name>
     <Created>T00:00:00.000</Created>
-    <Modified>2016-01-23T03:22:14.712</Modified>
+    <Modified>2016-01-27T14:49:54.702</Modified>
     <Author>Christian-W. Budde</Author>
     <Description>TypeScript to Object Pascal translator</Description>
     <Keywords>TypeScript, Object Pascal</Keywords>
@@ -71,7 +71,7 @@
         <EmbedJavaScript>0</EmbedJavaScript>
       </Linker>
       <Output>
-        <JavaScriptFileName>inline.js</JavaScriptFileName>
+        <JavaScriptFileName>ts2pas.js</JavaScriptFileName>
         <OutputFilePath>..\</OutputFilePath>
       </Output>
       <Import />
@@ -111,14 +111,20 @@
         <Modified>2016-01-23T01:45:35.497</Modified>
         <Filename>ts2pas.Main.pas</Filename>
       </File>
+      <File type="javascript" Template="1">
+        <Name>template.js</Name>
+        <Created>2016-01-27T14:48:23.205Z</Created>
+        <Modified>2016-01-27T14:49:28.316</Modified>
+        <Filename>template.js</Filename>
+      </File>
     </Files>
     <Target>Node.js</Target>
     <Generator>Node.js Project</Generator>
     <Statistics>
-      <BackgroundCompilations>12355</BackgroundCompilations>
-      <EditTime>05:54:10.749</EditTime>
-      <CompileTime>00:16:00.419</CompileTime>
-      <TotalTime>02:12:20.141</TotalTime>
+      <BackgroundCompilations>12376</BackgroundCompilations>
+      <EditTime>05:54:18.128</EditTime>
+      <CompileTime>00:16:11.568</CompileTime>
+      <TotalTime>02:15:26.681</TotalTime>
       <DesigningTime>00:00:00.000</DesigningTime>
       <RunningTime>00:00:00.000</RunningTime>
     </Statistics>
