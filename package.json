@@ -1,6 +1,6 @@
 {
   "name": "ts2pas",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "A tool to convert TypeScript definition files to DWScript based Object Pascal headers",
   "main": "ts2pas.js",
   "dependencies": {
