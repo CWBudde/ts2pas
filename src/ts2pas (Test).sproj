@@ -2,7 +2,7 @@
   <Project version="2" subversion="0">
     <Name>ts2pas</Name>
     <Created>T00:00:00.000</Created>
-    <Modified>2016-01-27T22:15:04.426</Modified>
+    <Modified>2016-01-28T22:02:40.196</Modified>
     <Author>Christian-W. Budde</Author>
     <Description>TypeScript to Object Pascal translator</Description>
     <Keywords>TypeScript, Object Pascal</Keywords>
@@ -90,35 +90,35 @@
       <File type="main">
         <Name>ts2pas (Test)</Name>
         <Created>2016-01-10T13:59:49.570Z</Created>
-        <Modified>2016-01-27T22:15:04.419</Modified>
+        <Modified>2016-01-28T22:02:40.189</Modified>
         <Filename>ts2pas (Test).spr</Filename>
       </File>
       <File type="unit">
         <Name>ts2pas.Translator</Name>
         <Created>2016-01-10T17:45:44.843Z</Created>
-        <Modified>2016-01-27T22:07:11.886</Modified>
+        <Modified>2016-01-28T21:03:19.421</Modified>
         <Filename>ts2pas.Translator.pas</Filename>
       </File>
       <File type="unit">
         <Name>ts2pas.Declarations</Name>
         <Created>2016-01-11T22:20:28.821Z</Created>
-        <Modified>2016-01-27T21:56:35.901</Modified>
+        <Modified>2016-01-28T21:46:17.654</Modified>
         <Filename>ts2pas.Declarations.pas</Filename>
       </File>
       <File type="unit">
         <Name>ts2pas.Main</Name>
         <Created>2016-01-23T01:44:37.996Z</Created>
-        <Modified>2016-01-27T13:42:13.963</Modified>
+        <Modified>2016-01-28T21:08:40.116</Modified>
         <Filename>ts2pas.Main.pas</Filename>
       </File>
     </Files>
     <Target>Node.js</Target>
     <Generator>Node.js Project</Generator>
     <Statistics>
-      <BackgroundCompilations>22499</BackgroundCompilations>
-      <EditTime>10:04:03.231</EditTime>
-      <CompileTime>00:34:49.845</CompileTime>
-      <TotalTime>08:05:52.512</TotalTime>
+      <BackgroundCompilations>23351</BackgroundCompilations>
+      <EditTime>10:25:22.248</EditTime>
+      <CompileTime>00:36:46.456</CompileTime>
+      <TotalTime>10:46:17.514</TotalTime>
       <DesigningTime>00:00:00.000</DesigningTime>
       <RunningTime>00:00:00.000</RunningTime>
     </Statistics>
