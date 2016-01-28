@@ -272,7 +272,7 @@ begin
       {TypeParameters.Add(}ReadTypeParameter{);}
     until CurrentToken <> TSyntaxKind.CommaToken;
 
-    ReadToken([TSyntaxKind.OpenParenToken, TSyntaxKind.LessThanToken], True);
+    ReadToken([TSyntaxKind.OpenParenToken], True);
   end;
 *)
 
@@ -559,7 +559,7 @@ end;
 function TTranslator.ReadMethodDeclaration: TMethodDeclaration;
 begin
   Result := TMethodDeclaration.Create(Self as IDeclarationOwner);
-  Result.Type := ReadFunctionType;
+  Result.CallSignature := ReadCallSignature;
 
   if NeedsSemicolon then
     AssumeToken([TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken]);
@@ -873,7 +873,13 @@ begin
 
         ReadToken(TSyntaxKind.EqualsToken, True);
 
-        ReadIdentifier(True);
+        ReadIdentifier([TSyntaxKind.RequireKeyword], True);
+        if CurrentToken = TSyntaxKind.RequireKeyword then
+        begin
+          ReadToken(TSyntaxKind.OpenParenToken);
+          ReadToken(TSyntaxKind.StringLiteral);
+          ReadToken(TSyntaxKind.CloseParenToken);
+        end;
       end;
   end;
 
@@ -970,7 +976,7 @@ var
     TSyntaxKind.ContinueKeyword, TSyntaxKind.DefaultKeyword,
     TSyntaxKind.DeleteKeyword, TSyntaxKind.ExportKeyword,
     TSyntaxKind.FinallyKeyword, TSyntaxKind.ForKeyword,
-    TSyntaxKind.InKeyword];
+    TSyntaxKind.ImportKeyword, TSyntaxKind.InKeyword];
 begin
   AssumeIdentifier(TypeTokens + IgnoredKeywords);
 
@@ -997,22 +1003,13 @@ begin
       ReadToken([TSyntaxKind.ColonToken, TSyntaxKind.OpenParenToken,
         TSyntaxKind.LessThanToken], True);
 
-    if CurrentToken = TSyntaxKind.LessThanToken then
-    begin
-      repeat
-        TypeArguments.Add(ReadTypeArgument);
-      until (CurrentToken <> TSyntaxKind.CommaToken);
-
-      ReadToken([TSyntaxKind.ColonToken, TSyntaxKind.OpenParenToken], True);
-    end;
-
     case CurrentToken of
       TSyntaxKind.ColonToken:
         begin
           Result := ReadPropertyMemberDeclaration;
           TPropertyMemberDeclaration(Result).Nullable := Nullable;
         end;
-      TSyntaxKind.OpenParenToken:
+      TSyntaxKind.OpenParenToken, TSyntaxKind.LessThanToken:
         Result := ReadMethodDeclaration;
     end;
 
@@ -1032,7 +1029,7 @@ var
     TSyntaxKind.ContinueKeyword, TSyntaxKind.DefaultKeyword,
     TSyntaxKind.DeleteKeyword, TSyntaxKind.ExportKeyword,
     TSyntaxKind.FinallyKeyword, TSyntaxKind.ForKeyword,
-    TSyntaxKind.InKeyword];
+    TSyntaxKind.ImportKeyword, TSyntaxKind.InKeyword];
 begin
   // assume we're at an open brace
   AssumeToken(TSyntaxKind.OpenBraceToken);
@@ -1504,7 +1501,7 @@ begin
   {$IFDEF DEBUG} Console.Log('Read ambient class: ' + Result.Name); {$ENDIF}
 
   ReadToken([TSyntaxKind.ExtendsKeyword, TSyntaxKind.ImplementsKeyword,
-    TSyntaxKind.OpenBraceToken], True);
+    TSyntaxKind.OpenBraceToken, TSyntaxKind.LessThanToken], True);
 
   if CurrentToken = TSyntaxKind.ExtendsKeyword then
   begin
@@ -1521,6 +1518,15 @@ begin
       ReadIdentifier(True);
       Result.Implements.Add(ReadIdentifierPath);
     end;
+  end;
+
+  if CurrentToken = TSyntaxKind.LessThanToken then
+  begin
+    repeat
+      {TypeParameters.Add(}ReadTypeParameter{);}
+    until CurrentToken <> TSyntaxKind.CommaToken;
+
+    ReadToken([TSyntaxKind.OpenBraceToken], True);
   end;
 
   // ensure the current token is an open brace

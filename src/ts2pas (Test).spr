@@ -1,24 +1,19 @@
 uses
-  ts2pas.Main;
+  ts2pas.Main, phantomjs;
 
 //ConvertFile('TypeScriptDefs/angular'); // FunctionType parameter vs. ParenthesizedType
+//ConvertFile('TypeScriptDefs/baconjs'); // FunctionType parameter vs. ParenthesizedType
+//ConvertFile('TypeScriptDefs/evernote'); // Import Declaration
+//ConvertFile('TypeScriptDefs/fhir'); // FunctionType parameter vs. ParenthesizedType
+//ConvertFile('TypeScriptDefs/goJS'); // FunctionType parameter vs. ParenthesizedType
 //ConvertFile('TypeScriptDefs/google.maps'); // FunctionType parameter vs. ParenthesizedType
-//ConvertFile('TypeScriptDefs/mongodb');
-
-//ConvertFile('TypeScriptDefs/fhir');
-//ConvertFile('TypeScriptDefs/lodash');
-//ConvertFile('TypeScriptDefs/goJS');
-//ConvertFile('TypeScriptDefs/evernote');
-//ConvertFile('TypeScriptDefs/titanium');
-//ConvertFile('TypeScriptDefs/baconjs');
-//ConvertFile('TypeScriptDefs/sugar');
-//ConvertFile('TypeScriptDefs/leaflet');
-//ConvertFile('TypeScriptDefs/browserify');
 //ConvertFile('TypeScriptDefs/gulp');
-(*
-(*
-ConvertFile('TypeScriptDefs/SharePoint');
-*)
+//ConvertFile('TypeScriptDefs/leaflet');
+//ConvertFile('TypeScriptDefs/lodash');
+//ConvertFile('TypeScriptDefs/mongodb');
+//ConvertFile('TypeScriptDefs/SharePoint');
+//ConvertFile('TypeScriptDefs/sugar');
+
 
 (*
 ConvertFile('TypeScriptDefs/abs');
@@ -30,6 +25,7 @@ ConvertFile('TypeScriptDefs/AmCharts');
 ConvertFile('TypeScriptDefs/amplifyjs');
 ConvertFile('TypeScriptDefs/babylon');
 ConvertFile('TypeScriptDefs/box2dweb');
+ConvertFile('TypeScriptDefs/browserify');
 ConvertFile('TypeScriptDefs/d3');
 ConvertFile('TypeScriptDefs/devextreme');
 ConvertFile('TypeScriptDefs/dijit');
@@ -40,6 +36,7 @@ ConvertFile('TypeScriptDefs/ExtJS');
 ConvertFile('TypeScriptDefs/fabricjs');
 ConvertFile('TypeScriptDefs/flot');
 ConvertFile('TypeScriptDefs/gruntjs');
+ConvertFile('TypeScriptDefs/hapi');
 ConvertFile('TypeScriptDefs/jquery');
 ConvertFile('TypeScriptDefs/jquerymobile');
 ConvertFile('TypeScriptDefs/kendo-ui');
@@ -48,6 +45,9 @@ ConvertFile('TypeScriptDefs/linq');
 ConvertFile('TypeScriptDefs/matter-js');
 ConvertFile('TypeScriptDefs/node');
 ConvertFile('TypeScriptDefs/office-js');
+ConvertFile('TypeScriptDefs/openlayers');
+ConvertFile('TypeScriptDefs/phantom');
+ConvertFile('TypeScriptDefs/phantomjs');
 ConvertFile('TypeScriptDefs/phonegap');
 ConvertFile('TypeScriptDefs/plottable');
 ConvertFile('TypeScriptDefs/preloadjs');
@@ -55,12 +55,14 @@ ConvertFile('TypeScriptDefs/SenchaTouch');
 ConvertFile('TypeScriptDefs/socket.io');
 ConvertFile('TypeScriptDefs/soundjs');
 ConvertFile('TypeScriptDefs/three');
+ConvertFile('TypeScriptDefs/titanium');
 ConvertFile('TypeScriptDefs/tweenjs');
 ConvertFile('TypeScriptDefs/typescript');
 ConvertFile('TypeScriptDefs/ui-grid');
 ConvertFile('TypeScriptDefs/webix');
 ConvertFile('TypeScriptDefs/winjs');
 ConvertFile('TypeScriptDefs/winrt');
+ConvertFile('TypeScriptDefs/youtube');
 *)
 
 //OutputAst('TypeScriptDefs/matter-js');

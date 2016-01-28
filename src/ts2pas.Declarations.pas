@@ -256,6 +256,17 @@ type
     property AsCode[OmitType: Boolean]: String read GetAsCodeOmitType;
   end;
 
+  TCallSignature = class(TCustomTypeMember)
+  protected
+    function GetAsCode: String; override;
+    function GetAsCodeWithOptionalLevel(OptionalLevel: Integer): String; overload;
+  public
+    property ParameterList: array of TParameter;
+    property &Type: TCustomType;
+    property TypeParameters: array of TTypeParameter;
+    property AsCode[OptionalLevel: Integer]: String read GetAsCodeWithOptionalLevel;
+  end;
+
   TTypeReference = class(TCustomDeclaration)
   protected
     function GetAsCode: String; override;
@@ -276,7 +287,7 @@ type
   protected
     function GetAsCode: String; override;
   public
-    property &Type: TFunctionType;
+    property CallSignature: TCallSignature;
   end;
 
   TInterfaceDeclaration = class(TCustomDeclaration)
@@ -303,16 +314,6 @@ type
   public
   end;
 
-  TCallSignature = class(TCustomTypeMember)
-  protected
-    function GetAsCode: String; override;
-    function GetAsCodeWithOptionalLevel(OptionalLevel: Integer): String; overload;
-  public
-    property ParameterList: array of TParameter;
-    property &Type: TCustomType;
-    property TypeParameters: array of TTypeParameter;
-    property AsCode[OptionalLevel: Integer]: String read GetAsCodeWithOptionalLevel;
-  end;
 
 
 
@@ -447,9 +448,10 @@ uses
 function Escape(Name: String): String;
 begin
   Result := Name;
-  if LowerCase(Name) in ['type', 'export', 'label', 'public', 'protected',
-    'private', 'abstract', 'default', 'const', 'constructor', 'property',
-    'function', 'class', 'interface', 'string', 'end', 'uses', 'div', 'object'] then
+  if LowerCase(Name) in ['abstract', 'class', 'const', 'constructor', 'default',
+    'div', 'end', 'export', 'external', 'function', 'interface', 'label',
+    'object', 'private', 'property', 'protected', 'public', 'string', 'type',
+    'uses'] then
     Result := '&' + Result;
   if LowerCase(Name) in ['length', 'include', 'exclude'] then
     Result := '_' + Result;
@@ -830,7 +832,14 @@ begin
   end;
 
   Result += ': ';
-  Result += if Assigned(&Type) then &Type.AsCode else 'Variant';
+  if Assigned(&Type) then
+  begin
+    if &Type is TObjectType then
+      Result += 'record' + CRLF;
+    Result += &Type.AsCode;
+  end
+  else
+    Result += 'Variant';
   Result += ';';
   if Nullable then
     Result += ' // nullable';
@@ -867,20 +876,20 @@ var
   Foot: string;
 begin
   var OptionalParameterCount := 0;
-  for var Parameter in &Type.ParameterList do
+  for var Parameter in CallSignature.ParameterList do
     if Parameter.IsOptional then
       Inc(OptionalParameterCount);
 
   Head := GetIndentionString;
-  Head += if Assigned(&Type.ResultType) then 'function' else 'procedure';
+  Head += if Assigned(CallSignature.&Type) then 'function' else 'procedure';
   Head += ' ' + Name;
 
-  Foot := ';' + if OptionalParameterCount > 0 then ' overload;';
+  Foot := if OptionalParameterCount > 0 then ' overload;';
   Foot += CRLF;
 
   Result := '';
   for var i := 0 to OptionalParameterCount do
-    Result += Head + &Type.AsCode[i] + Foot;
+    Result += Head + CallSignature.AsCode[i] + Foot;
 end;
 
 
@@ -890,7 +899,11 @@ function TFunctionParameter.GetAsCode: String;
 begin
   Result := Escape(Name) + ': ';
   if Assigned(&Type) then
+  begin
+    if &Type is TObjectType then
+      Result += 'record' + CRLF;
     Result += &Type.AsCode
+  end
   else
     Result += 'Variant';
 end;
@@ -902,7 +915,11 @@ begin
   begin
     Result += ': ';
     if Assigned(&Type) then
+    begin
+      if &Type is TObjectType then
+        Result += 'record' + CRLF;
       Result += &Type.AsCode
+    end
     else
       Result += 'Variant';
   end;
@@ -930,7 +947,15 @@ begin
 
   BeginIndention;
   for var Member in Members do
-    Result += Member.AsCode;
+    if Member is TCallSignature then
+    begin
+      Result += GetIndentionString;
+      var ResType := TCallSignature(Member).&Type;
+      Result += if Assigned(ResType) then 'function' else 'procedure';
+      Result += Member.AsCode + CRLF
+    end
+    else
+      Result += Member.AsCode;
   EndIndention;
   Result += GetIndentionString + 'end;';
 end;
@@ -1002,7 +1027,18 @@ end;
 
 function TParameter.GetAsCode: String;
 begin
-  Result := Name + ': ' + &Type.AsCode;
+  Result := Name + ': ';
+
+  if Assigned(&Type) then
+  begin
+    if &Type is TObjectType then
+      Result += 'record' + CRLF;
+
+    Result += &Type.AsCode
+  end
+  else
+    Result += 'Variant';
+
   if DefaultValue <> '' then
     Result += ' = ' + DefaultValue;
 
@@ -1017,7 +1053,18 @@ begin
   begin
     Result += ': ';
     if Assigned(&Type) then
+    begin
+      if &Type is TObjectType then
+        Result += 'record' + CRLF;
+
+      if &Type is TFunctionType then
+      begin
+        var ResType := TFunctionType(&Type).ResultType;
+        Result += if Assigned(ResType) then 'function' else 'procedure';
+      end;
+
       Result += &Type.AsCode
+    end
     else
       Result += 'Variant';
   end;
@@ -1047,6 +1094,8 @@ begin
 
   if Assigned(&Type) then
     Result += ': ' + &Type.AsCode;
+
+  Result += ';';
 end;
 
 function IsIdenticalParameterType(A, B: TParameter): Boolean;
@@ -1142,7 +1191,7 @@ begin
   Head += if Assigned(CallSignature.&Type) then 'function' else 'procedure';
   Head += ' ' + Name;
 
-  Foot := ';' + if OptionalParameterCount > 0 then ' overload;';
+  Foot := if OptionalParameterCount > 0 then ' overload;';
   Foot += CRLF;
 
   Result := '';
@@ -1213,6 +1262,8 @@ begin
     EndIndention;
     Result += CRLF;
   end;
+
+  Result += CRLF;
 end;
 
 
@@ -1314,7 +1365,7 @@ end;
 
 function TTypeAlias.GetAsCode: String;
 begin
-  Result := Name + ' = ' + &Type.AsCode;
+  Result := GetIndentionString + Name + ' = ' + &Type.AsCode + ';' + CRLF;
 end;
 
 
@@ -1416,7 +1467,7 @@ begin
   Head += if Assigned(CallSignature.&Type) then 'function' else 'procedure';
   Head += ' ' + Escape(Name);
 
-  Foot := ';' + if OptionalParameterCount > 0 then ' overload;';
+  Foot := if OptionalParameterCount > 0 then ' overload;';
   Foot += CRLF;
 
   Result := '';
