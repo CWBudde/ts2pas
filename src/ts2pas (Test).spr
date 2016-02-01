@@ -1,68 +1,79 @@
 uses
-  ts2pas.Main, phantomjs;
+  ts2pas.Main;
 
-//ConvertFile('TypeScriptDefs/angular'); // FunctionType parameter vs. ParenthesizedType
-//ConvertFile('TypeScriptDefs/baconjs'); // FunctionType parameter vs. ParenthesizedType
-//ConvertFile('TypeScriptDefs/evernote'); // Import Declaration
-//ConvertFile('TypeScriptDefs/fhir'); // FunctionType parameter vs. ParenthesizedType
-//ConvertFile('TypeScriptDefs/goJS'); // FunctionType parameter vs. ParenthesizedType
-//ConvertFile('TypeScriptDefs/google.maps'); // FunctionType parameter vs. ParenthesizedType
-//ConvertFile('TypeScriptDefs/gulp');
-//ConvertFile('TypeScriptDefs/leaflet');
-//ConvertFile('TypeScriptDefs/lodash');
-//ConvertFile('TypeScriptDefs/mongodb');
-//ConvertFile('TypeScriptDefs/SharePoint');
-//ConvertFile('TypeScriptDefs/sugar');
+//TranslateFile('TypeScriptDefs/angular'); // FunctionType parameter vs. ParenthesizedType
+//TranslateFile('TypeScriptDefs/baconjs'); // FunctionType parameter vs. ParenthesizedType
+//TranslateFile('TypeScriptDefs/evernote'); // Import Declaration
+//TranslateFile('TypeScriptDefs/fhir'); // FunctionType parameter vs. ParenthesizedType
+//TranslateFile('TypeScriptDefs/goJS'); // FunctionType parameter vs. ParenthesizedType
+//TranslateFile('TypeScriptDefs/google.maps'); // FunctionType parameter vs. ParenthesizedType
+// TranslateFile('TypeScriptDefs/nvd3'); // Tuplet issue?
+TranslateFile('TypeScriptDefs/gulp');
+//TranslateFile('TypeScriptDefs/leaflet');
+//TranslateFile('TypeScriptDefs/lodash');
+//TranslateFile('TypeScriptDefs/mongodb');
+//TranslateFile('TypeScriptDefs/SharePoint');
+//TranslateFile('TypeScriptDefs/sugar');
 
+//TranslateFile('TypeScriptDefs/uikit');
+
+//TranslateFile('TypeScriptDefs/sequelize');
 
 (*
-ConvertFile('TypeScriptDefs/abs');
-ConvertFile('TypeScriptDefs/absolute');
-ConvertFile('TypeScriptDefs/accounting');
-ConvertFile('TypeScriptDefs/acc-wizard');
-ConvertFile('TypeScriptDefs/amazon-product-api');
-ConvertFile('TypeScriptDefs/AmCharts');
-ConvertFile('TypeScriptDefs/amplifyjs');
-ConvertFile('TypeScriptDefs/babylon');
-ConvertFile('TypeScriptDefs/box2dweb');
-ConvertFile('TypeScriptDefs/browserify');
-ConvertFile('TypeScriptDefs/d3');
-ConvertFile('TypeScriptDefs/devextreme');
-ConvertFile('TypeScriptDefs/dijit');
-ConvertFile('TypeScriptDefs/dojo');
-ConvertFile('TypeScriptDefs/easeljs');
-ConvertFile('TypeScriptDefs/ember');
-ConvertFile('TypeScriptDefs/ExtJS');
-ConvertFile('TypeScriptDefs/fabricjs');
-ConvertFile('TypeScriptDefs/flot');
-ConvertFile('TypeScriptDefs/gruntjs');
-ConvertFile('TypeScriptDefs/hapi');
-ConvertFile('TypeScriptDefs/jquery');
-ConvertFile('TypeScriptDefs/jquerymobile');
-ConvertFile('TypeScriptDefs/kendo-ui');
-ConvertFile('TypeScriptDefs/LeapMotionTS');
-ConvertFile('TypeScriptDefs/linq');
-ConvertFile('TypeScriptDefs/matter-js');
-ConvertFile('TypeScriptDefs/node');
-ConvertFile('TypeScriptDefs/office-js');
-ConvertFile('TypeScriptDefs/openlayers');
-ConvertFile('TypeScriptDefs/phantom');
-ConvertFile('TypeScriptDefs/phantomjs');
-ConvertFile('TypeScriptDefs/phonegap');
-ConvertFile('TypeScriptDefs/plottable');
-ConvertFile('TypeScriptDefs/preloadjs');
-ConvertFile('TypeScriptDefs/SenchaTouch');
-ConvertFile('TypeScriptDefs/socket.io');
-ConvertFile('TypeScriptDefs/soundjs');
-ConvertFile('TypeScriptDefs/three');
-ConvertFile('TypeScriptDefs/titanium');
-ConvertFile('TypeScriptDefs/tweenjs');
-ConvertFile('TypeScriptDefs/typescript');
-ConvertFile('TypeScriptDefs/ui-grid');
-ConvertFile('TypeScriptDefs/webix');
-ConvertFile('TypeScriptDefs/winjs');
-ConvertFile('TypeScriptDefs/winrt');
-ConvertFile('TypeScriptDefs/youtube');
+//TranslateFile('TypeScriptDefs/highcharts');
+//TranslateFile('TypeScriptDefs/winjs-2.0');
+TranslateFile('TypeScriptDefs/abs');
+TranslateFile('TypeScriptDefs/absolute');
+TranslateFile('TypeScriptDefs/accounting');
+TranslateFile('TypeScriptDefs/acc-wizard');
+TranslateFile('TypeScriptDefs/amazon-product-api');
+TranslateFile('TypeScriptDefs/AmCharts');
+TranslateFile('TypeScriptDefs/amplifyjs');
+TranslateFile('TypeScriptDefs/babylon');
+TranslateFile('TypeScriptDefs/box2dweb');
+TranslateFile('TypeScriptDefs/browserify');
+TranslateFile('TypeScriptDefs/d3');
+TranslateFile('TypeScriptDefs/devextreme');
+TranslateFile('TypeScriptDefs/dijit');
+TranslateFile('TypeScriptDefs/dojo');
+TranslateFile('TypeScriptDefs/easeljs');
+TranslateFile('TypeScriptDefs/ember');
+TranslateFile('TypeScriptDefs/express');
+TranslateFile('TypeScriptDefs/ExtJS');
+TranslateFile('TypeScriptDefs/fabricjs');
+TranslateFile('TypeScriptDefs/flot');
+TranslateFile('TypeScriptDefs/gruntjs');
+TranslateFile('TypeScriptDefs/hapi');
+TranslateFile('TypeScriptDefs/jquery');
+TranslateFile('TypeScriptDefs/jquerymobile');
+TranslateFile('TypeScriptDefs/kendo-ui');
+TranslateFile('TypeScriptDefs/LeapMotionTS');
+TranslateFile('TypeScriptDefs/linq');
+TranslateFile('TypeScriptDefs/matter-js');
+TranslateFile('TypeScriptDefs/node');
+TranslateFile('TypeScriptDefs/office-js');
+TranslateFile('TypeScriptDefs/openlayers');
+TranslateFile('TypeScriptDefs/phantom');
+TranslateFile('TypeScriptDefs/phantomjs');
+TranslateFile('TypeScriptDefs/phonegap');
+TranslateFile('TypeScriptDefs/plottable');
+TranslateFile('TypeScriptDefs/preloadjs');
+TranslateFile('TypeScriptDefs/SenchaTouch');
+TranslateFile('TypeScriptDefs/socket.io');
+TranslateFile('TypeScriptDefs/soundjs');
+TranslateFile('TypeScriptDefs/three');
+TranslateFile('TypeScriptDefs/titanium');
+TranslateFile('TypeScriptDefs/tweenjs');
+TranslateFile('TypeScriptDefs/typescript');
+TranslateFile('TypeScriptDefs/ui-grid');
+TranslateFile('TypeScriptDefs/webix');
+TranslateFile('TypeScriptDefs/winjs');
+TranslateFile('TypeScriptDefs/winrt');
+TranslateFile('TypeScriptDefs/youtube');
 *)
 
 //OutputAst('TypeScriptDefs/matter-js');
+
+//ProcesAllUrls;
+
+
