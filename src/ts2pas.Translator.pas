@@ -33,6 +33,7 @@ type
     function ReadClassMember: TCustomTypeMember;
     procedure ReadClassMembers(const Declaration: TClassDeclaration);
     function ReadClassDeclaration: TClassDeclaration;
+    function ReadNamespaceDeclaration: TNamespaceDeclaration;
     function ReadModuleDeclaration: TModuleDeclaration;
     function ReadIdentifierPath: String;
 
@@ -67,7 +68,7 @@ type
     function ReadAmbientPropertyMemberDeclaration: TAmbientPropertyMemberDeclaration;
     function ReadAmbientEnumDeclaration: TEnumerationDeclaration;
     function ReadAmbientModuleDeclaration: TAmbientModuleDeclaration;
-    function ReadAmbientNamespaceDeclaration: TNamespaceDeclaration;
+    function ReadAmbientNamespaceDeclaration: TAmbientNamespaceDeclaration;
 
 
     procedure HandleScanError(Expected: TSyntaxKind = TSyntaxKind.Unknown);
@@ -386,8 +387,9 @@ var
     TSyntaxKind.StringLiteral, TSyntaxKind.AnyKeyword,
     TSyntaxKind.NumberKeyword, TSyntaxKind.StringKeyword,
     TSyntaxKind.BooleanKeyword, TSyntaxKind.VoidKeyword,
-    TSyntaxKind.TypeOfKeyword, TSyntaxKind.OpenBraceToken,
-    TSyntaxKind.OpenParenToken, TSyntaxKind.OpenBracketToken];
+    TSyntaxKind.TypeOfKeyword, TSyntaxKind.ThisKeyword,
+    TSyntaxKind.OpenBraceToken, TSyntaxKind.OpenParenToken,
+    TSyntaxKind.OpenBracketToken];
 begin
   // read type
   AssumeToken(PrimaryTypeTokens);
@@ -399,7 +401,7 @@ begin
         AssumeToken(TSyntaxKind.CloseParenToken);
         ReadToken;
       end;
-    TSyntaxKind.Identifier:
+    TSyntaxKind.Identifier, TSyntaxKind.ThisKeyword:
       begin
         Result := TNamedType.Create(Self as IDeclarationOwner, ReadIdentifierPath);
         if CurrentToken = TSyntaxKind.LessThanToken then
@@ -476,9 +478,9 @@ var
     TSyntaxKind.StringLiteral, TSyntaxKind.AnyKeyword,
     TSyntaxKind.NumberKeyword, TSyntaxKind.StringKeyword,
     TSyntaxKind.BooleanKeyword, TSyntaxKind.VoidKeyword,
-    TSyntaxKind.TypeOfKeyword, TSyntaxKind.NewKeyword,
-    TSyntaxKind.OpenBraceToken, TSyntaxKind.OpenParenToken,
-    TSyntaxKind.OpenBracketToken];
+    TSyntaxKind.TypeOfKeyword, TSyntaxKind.ThisKeyword,
+    TSyntaxKind.NewKeyword, TSyntaxKind.OpenBraceToken,
+    TSyntaxKind.OpenParenToken, TSyntaxKind.OpenBracketToken];
 begin
   // read type
   ReadToken(TypeTokens, True);
@@ -776,6 +778,49 @@ begin
   AssumeToken(TSyntaxKind.CloseBraceToken);
 end;
 
+function TTranslator.ReadNamespaceDeclaration: TNamespaceDeclaration;
+var
+  NamespaceTokens: array of TSyntaxKind = [TSyntaxKind.ClassKeyword,
+    TSyntaxKind.DeclareKeyword, TSyntaxKind.ExportKeyword,
+    TSyntaxKind.EnumKeyword, TSyntaxKind.ImportKeyword,
+    TSyntaxKind.FunctionKeyword, TSyntaxKind.InterfaceKeyword,
+    TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken];
+begin
+  AssumeToken(TSyntaxKind.NamespaceKeyword);
+
+  ReadIdentifier([TSyntaxKind.StringLiteral], True);
+
+  Result := TNamespaceDeclaration.Create(Self as IDeclarationOwner);
+  Result.Name := ReadIdentifierPath;
+
+  {$IFDEF DEBUG} Console.Log('Read namespace: ' + Result.Name); {$ENDIF}
+
+  // ensure that the next token is an open brace
+  AssumeToken(TSyntaxKind.OpenBraceToken);
+
+  ReadToken(NamespaceTokens, True);
+  while CurrentToken <> TSyntaxKind.CloseBraceToken do
+  begin
+    case CurrentToken of
+      TSyntaxKind.ClassKeyword:
+        Result.Classes.Add(ReadClassDeclaration);
+      TSyntaxKind.EnumKeyword:
+        ReadEnumerationDeclaration;
+      TSyntaxKind.FunctionKeyword:
+        Result.Functions.Add(ReadFunctionDeclaration);
+      TSyntaxKind.ImportKeyword:
+        ReadImportDeclaration;
+      TSyntaxKind.InterfaceKeyword:
+        Result.Interfaces.Add(ReadInterfaceDeclaration);
+    end;
+
+    ReadToken(NamespaceTokens, True)
+  end;
+
+  // ensure that the next token is an open brace
+  AssumeToken(TSyntaxKind.CloseBraceToken);
+end;
+
 function TTranslator.ReadModuleDeclaration: TModuleDeclaration;
 var
   ModuleTokens: array of TSyntaxKind = [TSyntaxKind.ClassKeyword,
@@ -831,7 +876,7 @@ end;
 
 function TTranslator.ReadIdentifierPath: String;
 begin
-  AssumeIdentifier([TSyntaxKind.StringLiteral]);
+  AssumeIdentifier([TSyntaxKind.StringLiteral, TSyntaxKind.ThisKeyword]);
   Result := CurrentTokenText;
 
   while ReadToken(TSyntaxKind.DotToken) do
@@ -914,10 +959,15 @@ begin
   // create constructor type
   Result := TConstructorDeclaration.Create(Self as IDeclarationOwner);
 
-  if ReadIdentifier then
+  ReadToken([TSyntaxKind.OpenParenToken, TSyntaxKind.LessThanToken], True);
+
+  if CurrentToken = TSyntaxKind.LessThanToken then
   begin
-    // read type parameters
-    ReadToken(TSyntaxKind.OpenParenToken);
+    repeat
+      Result.TypeParameters.Add(ReadTypeParameter);
+    until CurrentToken <> TSyntaxKind.CommaToken;
+
+    ReadToken([TSyntaxKind.OpenParenToken], True);
   end;
 
   AssumeToken(TSyntaxKind.OpenParenToken);
@@ -1545,9 +1595,53 @@ begin
   AssumeToken(TSyntaxKind.CloseBraceToken);
 end;
 
-function TTranslator.ReadAmbientNamespaceDeclaration: TNamespaceDeclaration;
+function TTranslator.ReadAmbientNamespaceDeclaration: TAmbientNamespaceDeclaration;
+var
+  AmbientNamespaceTokens: array of TSyntaxKind = [TSyntaxKind.ClassKeyword,
+    TSyntaxKind.DeclareKeyword, TSyntaxKind.ExportKeyword,
+    TSyntaxKind.EnumKeyword, TSyntaxKind.ImportKeyword,
+    TSyntaxKind.FunctionKeyword, TSyntaxKind.InterfaceKeyword,
+    TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken];
 begin
-  Console.Log('not implemented: ReadAmbientNamespaceDeclaration');
+  AssumeToken(TSyntaxKind.NamespaceKeyword);
+
+  ReadIdentifier([TSyntaxKind.StringLiteral], True);
+
+  Result := TAmbientNamespaceDeclaration.Create(Self as IDeclarationOwner);
+  Result.Name := ReadIdentifierPath;
+
+  {$IFDEF DEBUG} Console.Log('Read namespace: ' + Result.Name); {$ENDIF}
+
+  // ensure that the next token is an open brace
+  AssumeToken(TSyntaxKind.OpenBraceToken);
+
+  ReadToken(AmbientNamespaceTokens, True);
+  while CurrentToken <> TSyntaxKind.CloseBraceToken do
+  begin
+    var IsExport := CurrentToken = TSyntaxKind.ExportKeyword;
+    if IsExport then
+      ReadToken(AmbientNamespaceTokens, True);
+
+    case CurrentToken of
+      TSyntaxKind.ClassKeyword:
+        Result.Classes.Add(ReadAmbientClassDeclaration);
+      TSyntaxKind.EnumKeyword:
+        ReadEnumerationDeclaration;
+      TSyntaxKind.FunctionKeyword:
+        Result.Functions.Add(ReadAmbientFunctionDeclaration);
+      TSyntaxKind.ImportKeyword:
+        ReadImportDeclaration;
+      TSyntaxKind.InterfaceKeyword:
+        Result.Interfaces.Add(ReadInterfaceDeclaration);
+      TSyntaxKind.VarKeyword:
+        Result.Variables.Add(ReadAmbientVariableDeclaration);
+    end;
+
+    ReadToken(AmbientNamespaceTokens, True)
+  end;
+
+  // ensure that the next token is an open brace
+  AssumeToken(TSyntaxKind.CloseBraceToken);
 end;
 
 function TTranslator.ReadAmbientModuleDeclaration: TAmbientModuleDeclaration;
@@ -1557,8 +1651,8 @@ var
     TSyntaxKind.TypeKeyword, TSyntaxKind.FunctionKeyword,
     TSyntaxKind.ClassKeyword, TSyntaxKind.InterfaceKeyword,
     TSyntaxKind.EnumKeyword, TSyntaxKind.ModuleKeyword,
-    TSyntaxKind.ImportKeyword, TSyntaxKind.CloseBraceToken,
-    TSyntaxKind.SemicolonToken];
+    TSyntaxKind.NamespaceKeyword, TSyntaxKind.ImportKeyword,
+    TSyntaxKind.CloseBraceToken, TSyntaxKind.SemicolonToken];
 begin
   // assume we're at a module
   AssumeToken(TSyntaxKind.ModuleKeyword);
@@ -1636,6 +1730,8 @@ begin
         end;
       TSyntaxKind.FunctionKeyword:
         Result.Functions.Add(ReadAmbientFunctionDeclaration);
+      TSyntaxKind.NamespaceKeyword:
+        Result.Namespaces.Add(ReadNamespaceDeclaration);
       TSyntaxKind.ClassKeyword:
         begin
           Result.Classes.Add(ReadClassDeclaration);

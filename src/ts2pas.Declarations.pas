@@ -314,6 +314,26 @@ type
   public
   end;
 
+  TTypeAlias = class(TNamedDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &Type: TCustomType;
+    property &TypeParameters: array of TTypeParameter;
+  end;
+
+
+  TNamespaceDeclaration = class(TNamedDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Enums: array of TEnumerationDeclaration;
+    property TypeAliases: array of TTypeAlias;
+    property Functions: array of TFunctionDeclaration;
+    property Classes: array of TClassDeclaration;
+    property Interfaces: array of TInterfaceDeclaration;
+    property Namespaces: array of TNamespaceDeclaration;
+  end;
 
 
 
@@ -372,21 +392,26 @@ type
     property CallSignature: TCallSignature;
   end;
 
+  TAmbientEnumerationDeclaration = class(TEnumerationDeclaration);
+
+  TAmbientNamespaceDeclaration = class(TNamedDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Enums: array of TAmbientEnumerationDeclaration;
+    property Functions: array of TAmbientFunctionDeclaration;
+    property Classes: array of TAmbientClassDeclaration;
+    property Interfaces: array of TInterfaceDeclaration;
+    property Variables: array of TAmbientVariableDeclaration;
+    property Namespaces: array of TAmbientNamespaceDeclaration;
+  end;
+
   TAmbientConstructorDeclaration = class(TAmbientBodyElement)
   protected
     function GetAsCode: String; override;
   public
     property ParameterList: array of TFunctionParameter;
   end;
-
-  TTypeAlias = class(TNamedDeclaration)
-  protected
-    function GetAsCode: String; override;
-  public
-    property &Type: TCustomType;
-    property &TypeParameters: array of TTypeParameter;
-  end;
-
 
   TAmbientModuleDeclaration = class(TCustomDeclaration)
   protected
@@ -399,6 +424,7 @@ type
     property Functions: array of TAmbientFunctionDeclaration;
     property Classes: array of TClassDeclaration;
     property Modules: array of TAmbientModuleDeclaration;
+    property Namespaces: array of TNamespaceDeclaration;
     property Interfaces: array of TInterfaceDeclaration;
   end;
 
@@ -410,9 +436,6 @@ type
     function GetAsCode: String; override;
   public
     property &Type: TCustomType;
-  end;
-
-  TNamespaceDeclaration = class(TNamedDeclaration)
   end;
 
   TModuleDeclaration = class(TNamedDeclaration)
@@ -435,7 +458,7 @@ type
     property Functions: array of TAmbientFunctionDeclaration;
     property Enums: array of TEnumerationDeclaration;
     property Modules: array of TAmbientModuleDeclaration;
-    property Namespaces: array of TNamespaceDeclaration;
+    property Namespaces: array of TAmbientNamespaceDeclaration;
     property Variables: array of TAmbientVariableDeclaration;
   end;
 
@@ -720,13 +743,16 @@ begin
     Result += 'type' + CRLF;
     BeginIndention;
     for var &Class in Classes do
-      Result := Result + &Class.AsCode;
+      Result += &Class.AsCode;
     EndIndention;
   end;
 
   if Variables.Count > 0 then
     for var Variable in Variables do
-      Result := Result + Variable.AsCode;
+      Result += Variable.AsCode;
+
+  for var Namespace in Namespaces do
+    Result += Namespace.AsCode;
 end;
 
 
@@ -1263,6 +1289,9 @@ begin
     Result += CRLF;
   end;
 
+  for var Namespace in Namespaces do
+    Result += Namespace.AsCode;
+
   Result += CRLF;
 end;
 
@@ -1435,6 +1464,7 @@ begin
   Result += GetIndentionString + 'end;' + CRLF + CRLF;
 end;
 
+
 { TAmbientPropertyMemberDeclarationProperty }
 
 function TAmbientPropertyMemberDeclarationProperty.GetAsCode: String;
@@ -1475,5 +1505,77 @@ begin
     Result += Head + CallSignature.AsCode[i] + Foot;
 end;
 
+
+{ TNamespaceDeclaration }
+
+function TNamespaceDeclaration.GetAsCode: String;
+begin
+  Console.Log('not implemented: TDefinitionDeclaration.GetAsCode');
+end;
+
+{ TAmbientNamespaceDeclaration }
+
+function TAmbientNamespaceDeclaration.GetAsCode: String;
+begin
+  Console.Log('Write namespace: ' + Name);
+
+  Result := '// Namespace ' + Name + CRLF + CRLF;
+
+  var Constants := 0;
+  for var Variable in Variables do
+    if Variable.IsConst then
+      Inc(Constants);
+
+  if Constants > 0 then
+  begin
+    Result += 'const' + CRLF;
+    BeginIndention;
+    for var Variable in Variables do
+      if Variable.IsConst then
+        Result := Result + Variable.AsCode;
+    EndIndention;
+    Result += CRLF;
+  end;
+
+  if Enums.Count + Classes.Count + Interfaces.Count > 0 then
+  begin
+    Result += 'type' + CRLF;
+    BeginIndention;
+
+    for var Enum in Enums do
+      Result += Enum.AsCode;
+
+    for var &Class in Classes do
+      Result += &Class.AsCode;
+
+    for var &Interface in Interfaces do
+      Result += &Interface.AsCode;
+
+    EndIndention;
+  end;
+
+  if Functions.Count > 0 then
+  begin
+    for var &Function in Functions do
+      Result += &Function.AsCode;
+    Result += CRLF;
+  end;
+
+  if Variables.Count - Constants > 0 then
+  begin
+    Result += 'var' + CRLF;
+    BeginIndention;
+    for var Variable in Variables do
+      if not Variable.IsConst then
+        Result := Result + Variable.AsCode;
+    EndIndention;
+    Result += CRLF;
+  end;
+
+  for var Namespace in Namespaces do
+    Result += Namespace.AsCode;
+
+  Result += CRLF;
+end;
 
 end.

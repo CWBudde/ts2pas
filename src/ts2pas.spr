@@ -9,8 +9,14 @@ if userArgs.Length = 0 then asm
 end;
 
 var InputFile := userArgs[0];
-var OutputFile := userArgs[0]+'.pas';
-if userArgs.length = 2 then
-  OutputFile := userArgs[1];
+if InputFile.Contains('https://github.com\') then
+  LoadAndTranslate(InputFile.After('https://github.com\'))
+else
+begin
+  var OutputFile := userArgs[0]+'.pas';
 
-ConvertFile(inputFile, outputfile);
+  if userArgs.length = 2 then
+    OutputFile := userArgs[1];
+
+  TranslateFile(InputFile, OutputFile);
+end;
