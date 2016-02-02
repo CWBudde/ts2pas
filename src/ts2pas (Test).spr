@@ -1,13 +1,19 @@
 uses
   ts2pas.Main;
 
+TranslateDirectory('TypeScriptDefs/');
+
 //TranslateFile('TypeScriptDefs/angular'); // FunctionType parameter vs. ParenthesizedType
 //TranslateFile('TypeScriptDefs/lodash'); // FunctionType parameter vs. ParenthesizedType
 //TranslateFile('TypeScriptDefs/baconjs');
 //TranslateFile('TypeScriptDefs/evernote'); // Import Declaration
 //TranslateFile('TypeScriptDefs/nvd3'); // Tuplet issue?
 //TranslateFile('TypeScriptDefs/leaflet');
-//TranslateFile('TypeScriptDefs/mongodb');
+
+//TranslateFile('TypeScriptDefs/winrt-uwp');
+//TranslateFile('TypeScriptDefs/mendixmodelsdk');
+
+
 
 (* * )
 
@@ -15,22 +21,31 @@ TranslateFile('TypeScriptDefs/abs');
 TranslateFile('TypeScriptDefs/absolute');
 TranslateFile('TypeScriptDefs/accounting');
 TranslateFile('TypeScriptDefs/acc-wizard');
+TranslateFile('TypeScriptDefs/acorn');
 TranslateFile('TypeScriptDefs/amazon-product-api');
 TranslateFile('TypeScriptDefs/AmCharts');
 TranslateFile('TypeScriptDefs/amplifyjs');
+TranslateFile('TypeScriptDefs/arcgis-js-api');
 TranslateFile('TypeScriptDefs/babylon');
 TranslateFile('TypeScriptDefs/box2dweb');
 TranslateFile('TypeScriptDefs/browserify');
+TranslateFile('TypeScriptDefs/chrome');
+TranslateFile('TypeScriptDefs/chrome-app');
+TranslateFile('TypeScriptDefs/chrome-cast');
 TranslateFile('TypeScriptDefs/d3');
 TranslateFile('TypeScriptDefs/devextreme');
 TranslateFile('TypeScriptDefs/dijit');
 TranslateFile('TypeScriptDefs/dojo');
+TranslateFile('TypeScriptDefs/dojox.form');
+TranslateFile('TypeScriptDefs/dojox.mobile');
+TranslateFile('TypeScriptDefs/dojox.widget');
 TranslateFile('TypeScriptDefs/easeljs');
 TranslateFile('TypeScriptDefs/ember');
 TranslateFile('TypeScriptDefs/express');
 TranslateFile('TypeScriptDefs/ExtJS');
 TranslateFile('TypeScriptDefs/fabricjs');
 TranslateFile('TypeScriptDefs/fhir');
+TranslateFile('TypeScriptDefs/firefox');
 TranslateFile('TypeScriptDefs/flot');
 TranslateFile('TypeScriptDefs/goJS');
 TranslateFile('TypeScriptDefs/google.maps');
@@ -38,12 +53,14 @@ TranslateFile('TypeScriptDefs/gruntjs');
 TranslateFile('TypeScriptDefs/gulp');
 TranslateFile('TypeScriptDefs/hapi');
 TranslateFile('TypeScriptDefs/highcharts');
+TranslateFile('TypeScriptDefs/impress');
 TranslateFile('TypeScriptDefs/jquery');
 TranslateFile('TypeScriptDefs/jquerymobile');
 TranslateFile('TypeScriptDefs/kendo-ui');
 TranslateFile('TypeScriptDefs/LeapMotionTS');
 TranslateFile('TypeScriptDefs/linq');
 TranslateFile('TypeScriptDefs/matter-js');
+TranslateFile('TypeScriptDefs/mongodb');
 TranslateFile('TypeScriptDefs/node');
 TranslateFile('TypeScriptDefs/office-js');
 TranslateFile('TypeScriptDefs/openlayers');

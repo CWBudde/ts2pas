@@ -6,8 +6,9 @@ uses
   NodeJS.Core, NodeJS.FS, NodeJS.https, NodeJS.events, TypeScript,
   ts2pas.Translator;
 
-procedure TranslateFile(InputFile, OutputFile: String); overload;
-procedure TranslateFile(InputFile: String); overload;
+procedure TranslateDirectory(Directory: String);
+function TranslateFile(InputFile, OutputFile: String): Boolean; overload;
+function TranslateFile(InputFile: String): Boolean; overload;
 procedure LoadAndTranslate(URL: String);
 procedure OutputAst(InputFile: String);
 
@@ -17,7 +18,18 @@ implementation
 
 var FileSystem := fs;
 
-procedure TranslateFile(InputFile, OutputFile: String); overload;
+procedure TranslateDirectory(Directory: String);
+var
+  Success: array of String;
+begin
+  FileSystem.readdir(Directory, lambda(err: JError; files: array of string)
+    for var File in files do
+      if TranslateFile(Directory + File) then
+        Success.Add(File);
+  end);
+end;
+
+function TranslateFile(InputFile, OutputFile: String): Boolean; overload;
 begin
   var InputName := InputFile.Before('.d.ts');
   if InputFile = InputName then
@@ -36,8 +48,11 @@ begin
     Translator.Name := InputName;
     var OutputText := Translator.Translate(InputText);
 
-    FileSystem.writeFile(OutputFile, OutputText, lambda(Error: Variant)
-      end);
+    Result := OutputText <> '';
+
+    if OutputText.Length > 5 then
+      FileSystem.writeFile(OutputFile, OutputText, lambda(Error: Variant)
+        end);
 
     {$IFDEF DEBUG}
     Console.Log('Done!');
@@ -48,9 +63,9 @@ begin
   end);
 end;
 
-procedure TranslateFile(InputFile: String); overload;
+function TranslateFile(InputFile: String): Boolean; overload;
 begin
-  TranslateFile(InputFile, InputFile.Before('.d.ts') + '.pas');
+  Result := TranslateFile(InputFile, InputFile.Before('.d.ts') + '.pas');
 end;
 
 function DelintNode(Node: JNode): Variant;
@@ -126,8 +141,9 @@ begin
       var OutputText := Translator.Translate(InputText);
 
       Console.Log('Writing: ' + OutputFile);
-      FileSystem.writeFile(OutputFile, OutputText, lambda(Error: Variant)
-        end);
+      if OutputText.Length > 5 then
+        FileSystem.writeFile(OutputFile, OutputText, lambda(Error: Variant)
+          end);
 
       {$IFDEF DEBUG}
       Console.Log('Done!');

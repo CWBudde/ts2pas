@@ -493,11 +493,13 @@ begin
     var IsFunctionType := True;
 
     ReadIdentifier(TypeTokens + [TSyntaxKind.PublicKeyword,
-      TSyntaxKind.ProtectedKeyword, TSyntaxKind.PrivateKeyword]);
+      TSyntaxKind.ProtectedKeyword, TSyntaxKind.PrivateKeyword,
+      TSyntaxKind.CloseParenToken, TSyntaxKind.DotDotDotToken], True);
 
     // check for accessibility modifiers
     if not (CurrentToken in [TSyntaxKind.PublicKeyword,
-      TSyntaxKind.ProtectedKeyword, TSyntaxKind.PrivateKeyword]) then
+      TSyntaxKind.ProtectedKeyword, TSyntaxKind.PrivateKeyword,
+      TSyntaxKind.CloseParenToken, TSyntaxKind.DotDotDotToken]) then
     begin
       // identifers require further scanning
       if FScanner.isIdentifier then
@@ -509,7 +511,8 @@ begin
         IsFunctionType := CurrentToken in [TSyntaxKind.ColonToken,
           TSyntaxKind.QuestionToken, TSyntaxKind.CommaToken,
           TSyntaxKind.CloseParenToken];
-      end;
+      end else
+        IsFunctionType := not (CurrentToken in [TSyntaxKind.OpenParenToken]);
     end;
 
     // reset text position
@@ -518,7 +521,7 @@ begin
     // read type
     ReadToken(TypeTokens, True);
 
-    // Console.Log('Assume ' + (if IsFunctionType then 'function' else 'primary') + ' type');
+    //Console.Log('Assume ' + (if IsFunctionType then 'function' else 'primary') + ' type');
 
     if IsFunctionType then
       Exit(ReadFunctionType);
@@ -960,7 +963,9 @@ begin
           ReadToken(TSyntaxKind.OpenParenToken);
           ReadToken(TSyntaxKind.StringLiteral);
           ReadToken(TSyntaxKind.CloseParenToken);
-        end;
+        end
+        else
+          Result.Value := ReadIdentifierPath;
       end;
   end;
 
@@ -1064,10 +1069,23 @@ var
     TSyntaxKind.FinallyKeyword, TSyntaxKind.ForKeyword,
     TSyntaxKind.ImportKeyword, TSyntaxKind.InKeyword];
 begin
+  // store text position
+  var TextPos := FScanner.TextPos;
+
   AssumeIdentifier(TypeTokens + IgnoredKeywords);
 
   if CurrentToken = TSyntaxKind.NewKeyword then
-    Exit(ReadConstructorSignature);
+  begin
+    var IsConstructorType := not ReadToken([TSyntaxKind.QuestionToken,
+      TSyntaxKind.ColonToken]);
+
+    // reset text position
+    FScanner.TextPos := TextPos - 3;
+    FScanner.Scan;
+
+    if IsConstructorType then
+      Exit(ReadConstructorSignature);
+  end;
 
   if CurrentToken in [TSyntaxKind.OpenParenToken, TSyntaxKind.LessThanToken] then
     Exit(ReadCallSignature);
@@ -1076,7 +1094,7 @@ begin
     Exit(ReadIndexSignature);
 
   if FScanner.IsIdentifier or (FScanner.getToken in ([TSyntaxKind.StringLiteral,
-    TSyntaxKind.NumericLiteral] + IgnoredKeywords)) then
+    TSyntaxKind.NumericLiteral, TSyntaxKind.NewKeyword] + IgnoredKeywords)) then
   begin
     var MemberName := CurrentTokenText;
 
@@ -1503,8 +1521,10 @@ begin
     TSyntaxKind.PublicKeyword, TSyntaxKind.ProtectedKeyword,
     TSyntaxKind.PrivateKeyword]);
 
+(*
   if CurrentToken <> TSyntaxKind.SemicolonToken then
     ReadToken(TSyntaxKind.SemicolonToken, True);
+*)
 end;
 
 function TTranslator.ReadAmbientPropertyMemberDeclaration: TAmbientPropertyMemberDeclaration;
@@ -1677,7 +1697,8 @@ begin
         Result.Variables.Add(ReadAmbientVariableDeclaration);
     end;
 
-    ReadToken(AmbientNamespaceTokens, True)
+    if CurrentToken = TSyntaxKind.SemicolonToken then
+      ReadToken(AmbientNamespaceTokens, True)
   end;
 
   // ensure that the next token is an open brace
