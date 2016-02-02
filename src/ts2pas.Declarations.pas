@@ -14,18 +14,24 @@ type
   TCustomDeclaration = class
   private
     FOwner: IDeclarationOwner;
-    class var IndentionLevel: Integer;
+    class var FIndentionLevel: Integer;
+    class var FNamespaces: array of String;
   protected
     function GetAsCode: String; virtual; abstract;
 
     class function GetIndentionString: String;
+    class function GetNamespaceString: String;
   public
     constructor Create(Owner: IDeclarationOwner); virtual;
 
     class procedure BeginIndention;
     class procedure EndIndention;
 
+    class procedure BeginNamespace(Value: String);
+    class procedure EndNamespace;
+
     property AsCode: String read GetAsCode;
+    property NamespaceString: String read GetNamespaceString;
   end;
 
   TNamedDeclaration = class(TCustomDeclaration)
@@ -490,17 +496,38 @@ end;
 
 class procedure TCustomDeclaration.BeginIndention;
 begin
-  Inc(IndentionLevel);
+  Inc(FIndentionLevel);
+end;
+
+class procedure TCustomDeclaration.BeginNameSpace(Value: String);
+begin
+  FNamespaces.Push(Value);
 end;
 
 class procedure TCustomDeclaration.EndIndention;
 begin
-  Dec(IndentionLevel);
+  Dec(FIndentionLevel);
+end;
+
+class procedure TCustomDeclaration.EndNamespace;
+begin
+  FNamespaces.Pop;
 end;
 
 class function TCustomDeclaration.GetIndentionString: String;
 begin
-  Result := DupeString('  ', IndentionLevel);
+  Result := DupeString('  ', FIndentionLevel);
+end;
+
+class function TCustomDeclaration.GetNamespaceString: String;
+begin
+  Result := '';
+  if FNamespaces.Count > 0 then
+  begin
+    Result += FNamespaces[0];
+    for var Index := Low(FNamespaces) + 1 to High(FNamespaces) do
+      Result += '.' + FNamespaces[Index];
+  end;
 end;
 
 
@@ -818,9 +845,13 @@ begin
 
   Head := GetIndentionString;
   Head += if Assigned(&Type.ResultType) then 'function' else 'procedure';
-  Head += ' ' + Name;
+  Head += ' ' + Escape(Name);
 
   Foot := ';' + if OptionalParameterCount > 0 then ' overload;';
+(*
+  if NamespaceString <> '' then
+    Foot += ' external ''' + NamespaceString + Escape(Name) + '''';
+*)
   Foot += CRLF;
 
   Result := '';
@@ -1215,9 +1246,11 @@ begin
 
   Head := GetIndentionString;
   Head += if Assigned(CallSignature.&Type) then 'function' else 'procedure';
-  Head += ' ' + Name;
+  Head += ' ' + Escape(Name);
 
-  Foot := if OptionalParameterCount > 0 then ' overload;';
+  Foot := ';' + if OptionalParameterCount > 0 then ' overload;';
+  if NamespaceString <> '' then
+    Foot += ' external ''' + NamespaceString + '.' + Name + '''';
   Foot += CRLF;
 
   Result := '';
@@ -1510,16 +1543,45 @@ end;
 
 function TNamespaceDeclaration.GetAsCode: String;
 begin
-  Console.Log('not implemented: TDefinitionDeclaration.GetAsCode');
+  BeginNamespace(Name);
+
+  if Enums.Count + Classes.Count + Interfaces.Count > 0 then
+  begin
+    Result += 'type' + CRLF;
+    BeginIndention;
+
+    for var Enum in Enums do
+      Result += Enum.AsCode;
+
+    for var &Class in Classes do
+      Result += &Class.AsCode;
+
+    for var &Interface in Interfaces do
+      Result += &Interface.AsCode;
+
+    EndIndention;
+  end;
+
+  if Functions.Count > 0 then
+  begin
+    for var &Function in Functions do
+      Result += &Function.AsCode;
+    Result += CRLF;
+  end;
+
+  for var Namespace in Namespaces do
+    Result += Namespace.AsCode;
+
+  Result += CRLF;
+
+  EndNamespace;
 end;
 
 { TAmbientNamespaceDeclaration }
 
 function TAmbientNamespaceDeclaration.GetAsCode: String;
 begin
-  Console.Log('Write namespace: ' + Name);
-
-  Result := '// Namespace ' + Name + CRLF + CRLF;
+  BeginNameSpace(Name);
 
   var Constants := 0;
   for var Variable in Variables do
@@ -1576,6 +1638,8 @@ begin
     Result += Namespace.AsCode;
 
   Result += CRLF;
+
+  EndNameSpace;
 end;
 
 end.

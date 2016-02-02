@@ -26,7 +26,9 @@ The following TypeScript definitions have been tested to work (in terms of a sim
 * amazon-product-api
 * AmCharts
 * amplifyjs
+* babylon
 * box2dweb
+* browserify
 * d3
 * devextreme
 * dijit
@@ -35,8 +37,12 @@ The following TypeScript definitions have been tested to work (in terms of a sim
 * ember
 * ExtJS
 * fabricjs
+* fhir
 * flot
+* goJS
+* google.maps
 * gruntjs
+* gulp
 * jquery
 * jquerymobile
 * kendo-ui
@@ -51,7 +57,9 @@ The following TypeScript definitions have been tested to work (in terms of a sim
 * SenchaTouch
 * socket.io
 * soundjs
+* sugar
 * three
+* titanium
 * tweenjs
 * typescript
 * ui-grid
@@ -63,21 +71,19 @@ The following TypeScript definitions still fail for sure:
 
 * angular
 * baconjs
-* browserify
 * evernote
-* fhir
-* goJS
-* google.maps
-* gulp
 * leaflet
 * lodash
 * mongodb
-* sugar
-* titanium
+* nvd3
 
 
 ## Release History
 
+* 0.4.0 Fixed issue with ambigiousness of parenthesized type and function types
+* 0.3.8 Ability to convert URLs (especially from GitHub) as well
+* 0.3.7 Improved source code generation
+* 0.3.6 Basic support for several major libraries/framework (see list)
 * 0.3.5 Improved compatibility 
 * 0.3.4 Fixed several minor issues 
 * 0.3.3 Function overload works 

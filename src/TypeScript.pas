@@ -898,6 +898,7 @@ type
     function lookAhead<T>(callback:  => T): T;
     function tryScan<T>(callback:  => T): T;
 *)
+    property TextPos: Integer read getTextPos write setTextPos;
   end;
 
   JCompilerOptions = class external
