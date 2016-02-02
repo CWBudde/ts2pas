@@ -2,26 +2,15 @@ uses
   ts2pas.Main;
 
 //TranslateFile('TypeScriptDefs/angular'); // FunctionType parameter vs. ParenthesizedType
-//TranslateFile('TypeScriptDefs/baconjs'); // FunctionType parameter vs. ParenthesizedType
+//TranslateFile('TypeScriptDefs/lodash'); // FunctionType parameter vs. ParenthesizedType
+//TranslateFile('TypeScriptDefs/baconjs');
 //TranslateFile('TypeScriptDefs/evernote'); // Import Declaration
-//TranslateFile('TypeScriptDefs/fhir'); // FunctionType parameter vs. ParenthesizedType
-//TranslateFile('TypeScriptDefs/goJS'); // FunctionType parameter vs. ParenthesizedType
-//TranslateFile('TypeScriptDefs/google.maps'); // FunctionType parameter vs. ParenthesizedType
-// TranslateFile('TypeScriptDefs/nvd3'); // Tuplet issue?
-TranslateFile('TypeScriptDefs/gulp');
+//TranslateFile('TypeScriptDefs/nvd3'); // Tuplet issue?
 //TranslateFile('TypeScriptDefs/leaflet');
-//TranslateFile('TypeScriptDefs/lodash');
 //TranslateFile('TypeScriptDefs/mongodb');
-//TranslateFile('TypeScriptDefs/SharePoint');
-//TranslateFile('TypeScriptDefs/sugar');
 
-//TranslateFile('TypeScriptDefs/uikit');
+(* * )
 
-//TranslateFile('TypeScriptDefs/sequelize');
-
-(*
-//TranslateFile('TypeScriptDefs/highcharts');
-//TranslateFile('TypeScriptDefs/winjs-2.0');
 TranslateFile('TypeScriptDefs/abs');
 TranslateFile('TypeScriptDefs/absolute');
 TranslateFile('TypeScriptDefs/accounting');
@@ -41,9 +30,14 @@ TranslateFile('TypeScriptDefs/ember');
 TranslateFile('TypeScriptDefs/express');
 TranslateFile('TypeScriptDefs/ExtJS');
 TranslateFile('TypeScriptDefs/fabricjs');
+TranslateFile('TypeScriptDefs/fhir');
 TranslateFile('TypeScriptDefs/flot');
+TranslateFile('TypeScriptDefs/goJS');
+TranslateFile('TypeScriptDefs/google.maps');
 TranslateFile('TypeScriptDefs/gruntjs');
+TranslateFile('TypeScriptDefs/gulp');
 TranslateFile('TypeScriptDefs/hapi');
+TranslateFile('TypeScriptDefs/highcharts');
 TranslateFile('TypeScriptDefs/jquery');
 TranslateFile('TypeScriptDefs/jquerymobile');
 TranslateFile('TypeScriptDefs/kendo-ui');
@@ -59,18 +53,25 @@ TranslateFile('TypeScriptDefs/phonegap');
 TranslateFile('TypeScriptDefs/plottable');
 TranslateFile('TypeScriptDefs/preloadjs');
 TranslateFile('TypeScriptDefs/SenchaTouch');
+TranslateFile('TypeScriptDefs/sequelize');
+TranslateFile('TypeScriptDefs/SharePoint');
 TranslateFile('TypeScriptDefs/socket.io');
 TranslateFile('TypeScriptDefs/soundjs');
+TranslateFile('TypeScriptDefs/sugar');
+TranslateFile('TypeScriptDefs/test');
 TranslateFile('TypeScriptDefs/three');
 TranslateFile('TypeScriptDefs/titanium');
 TranslateFile('TypeScriptDefs/tweenjs');
 TranslateFile('TypeScriptDefs/typescript');
 TranslateFile('TypeScriptDefs/ui-grid');
+TranslateFile('TypeScriptDefs/uikit');
 TranslateFile('TypeScriptDefs/webix');
 TranslateFile('TypeScriptDefs/winjs');
+TranslateFile('TypeScriptDefs/winjs-2.0');
 TranslateFile('TypeScriptDefs/winrt');
 TranslateFile('TypeScriptDefs/youtube');
-*)
+
+(* *)
 
 //OutputAst('TypeScriptDefs/matter-js');
 

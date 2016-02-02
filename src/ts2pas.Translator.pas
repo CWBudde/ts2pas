@@ -482,11 +482,47 @@ var
     TSyntaxKind.NewKeyword, TSyntaxKind.OpenBraceToken,
     TSyntaxKind.OpenParenToken, TSyntaxKind.OpenBracketToken];
 begin
+  // store text position
+  var TextPos := FScanner.TextPos;
+
   // read type
   ReadToken(TypeTokens, True);
 
   if CurrentToken = TSyntaxKind.OpenParenToken then
-    Exit(ReadFunctionType);
+  begin
+    var IsFunctionType := True;
+
+    ReadIdentifier(TypeTokens + [TSyntaxKind.PublicKeyword,
+      TSyntaxKind.ProtectedKeyword, TSyntaxKind.PrivateKeyword]);
+
+    // check for accessibility modifiers
+    if not (CurrentToken in [TSyntaxKind.PublicKeyword,
+      TSyntaxKind.ProtectedKeyword, TSyntaxKind.PrivateKeyword]) then
+    begin
+      // identifers require further scanning
+      if FScanner.isIdentifier then
+      begin
+        ReadToken([TSyntaxKind.LessThanToken, TSyntaxKind.BarToken,
+          TSyntaxKind.ColonToken, TSyntaxKind.CommaToken,
+          TSyntaxKind.QuestionToken, TSyntaxKind.DotToken,
+          TSyntaxKind.OpenBracketToken, TSyntaxKind.CloseParenToken], True);
+        IsFunctionType := CurrentToken in [TSyntaxKind.ColonToken,
+          TSyntaxKind.QuestionToken, TSyntaxKind.CommaToken,
+          TSyntaxKind.CloseParenToken];
+      end;
+    end;
+
+    // reset text position
+    FScanner.TextPos := TextPos;
+
+    // read type
+    ReadToken(TypeTokens, True);
+
+    // Console.Log('Assume ' + (if IsFunctionType then 'function' else 'primary') + ' type');
+
+    if IsFunctionType then
+      Exit(ReadFunctionType);
+  end;
 
   if CurrentToken = TSyntaxKind.NewKeyword then
     Exit(ReadConstructorType);
@@ -1225,7 +1261,8 @@ begin
 
   Result.&Type := ReadType;
 
-  AssumeToken(TSyntaxKind.SemicolonToken);
+  if NeedsSemicolon then
+    AssumeToken(TSyntaxKind.SemicolonToken);
 end;
 
 function TTranslator.ReadTypeParameter: TTypeParameter;
@@ -1462,7 +1499,9 @@ begin
   Result.CallSignature := ReadCallSignature;
 
   // ensure that we are a close paren token
-  AssumeToken([TSyntaxKind.CloseParenToken, TSyntaxKind.SemicolonToken]);
+  AssumeToken([TSyntaxKind.CloseParenToken, TSyntaxKind.SemicolonToken,
+    TSyntaxKind.PublicKeyword, TSyntaxKind.ProtectedKeyword,
+    TSyntaxKind.PrivateKeyword]);
 
   if CurrentToken <> TSyntaxKind.SemicolonToken then
     ReadToken(TSyntaxKind.SemicolonToken, True);
@@ -1601,7 +1640,8 @@ var
     TSyntaxKind.DeclareKeyword, TSyntaxKind.ExportKeyword,
     TSyntaxKind.EnumKeyword, TSyntaxKind.ImportKeyword,
     TSyntaxKind.FunctionKeyword, TSyntaxKind.InterfaceKeyword,
-    TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken];
+    TSyntaxKind.VarKeyword, TSyntaxKind.SemicolonToken,
+    TSyntaxKind.CloseBraceToken];
 begin
   AssumeToken(TSyntaxKind.NamespaceKeyword);
 
@@ -1686,8 +1726,6 @@ begin
         IsExport := False;
         ReadIdentifier;
 
-        ReadToken(TSyntaxKind.SemicolonToken);
-
         ReadToken(ModuleTokens, True);
       end;
 
@@ -1696,8 +1734,6 @@ begin
         // handle this directly
         IsExport := False;
         ReadIdentifier;
-
-        ReadToken(TSyntaxKind.SemicolonToken);
 
         ReadToken(ModuleTokens, True);
       end;
@@ -1724,14 +1760,14 @@ begin
           ReadToken(ModuleTokens, True);
         end;
       TSyntaxKind.TypeKeyword:
-        begin
-          Result.TypeAliases.Add(ReadTypeAliasDeclaration);
-          ReadToken(ModuleTokens, True);
-        end;
+        Result.TypeAliases.Add(ReadTypeAliasDeclaration);
       TSyntaxKind.FunctionKeyword:
         Result.Functions.Add(ReadAmbientFunctionDeclaration);
       TSyntaxKind.NamespaceKeyword:
-        Result.Namespaces.Add(ReadNamespaceDeclaration);
+        begin
+          Result.Namespaces.Add(ReadNamespaceDeclaration);
+          ReadToken(ModuleTokens, True);
+        end;
       TSyntaxKind.ClassKeyword:
         begin
           Result.Classes.Add(ReadClassDeclaration);
@@ -1790,7 +1826,7 @@ begin
   if Expected > TSyntaxKind.Unknown then
     Text += Format('; Expected (%d)', [Expected]);
 
-  Console.Trace('');
+  Console.Trace('Error in ' + Name);
 
   raise Exception.Create(Text);
 end;
