@@ -318,6 +318,7 @@ type
   protected
     function GetAsCode: String; override;
   public
+    property Value: String;
   end;
 
   TTypeAlias = class(TNamedDeclaration)
@@ -546,7 +547,10 @@ begin
   Result := 'Variant {';
 
   for var Index := Low(Types) to High(Types) - 1 do
-    Result += Types[Index].AsCode + ' or ';
+  begin
+    Result += if Assigned(Types[Index]) then Types[Index].AsCode else 'void';
+    Result += ' or ';
+  end;
 
   var LastType := Types[High(Types)];
   Result += if Assigned(LastType) then LastType.AsCode else 'void';
