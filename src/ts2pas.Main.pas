@@ -6,28 +6,39 @@ uses
   NodeJS.Core, NodeJS.FS, NodeJS.https, NodeJS.events, TypeScript,
   ts2pas.Translator;
 
-procedure TranslateDirectory(Directory: String);
 function TranslateFile(InputFile, OutputFile: String): Boolean; overload;
 function TranslateFile(InputFile: String): Boolean; overload;
 procedure LoadAndTranslate(URL: String);
+{$IFNDEF CommandLine}
+procedure TranslateDirectory(Directory: String);
 procedure OutputAst(InputFile: String);
-
 procedure ProcesAllUrls;
+{$ENDIF}
 
 implementation
 
 var FileSystem := fs;
 
+{$IFNDEF CommandLine}
 procedure TranslateDirectory(Directory: String);
 var
   Success: array of String;
 begin
   FileSystem.readdir(Directory, lambda(err: JError; files: array of string)
     for var File in files do
+    begin
+      // only consider files with .d.ts extension
+      if not File.EndsWith('.d.ts') then
+        continue;
+
       if TranslateFile(Directory + File) then
-        Success.Add(File);
+        Success.Add(File)
+      else
+//        Exit;
+    end;
   end);
 end;
+{$ENDIF}
 
 function TranslateFile(InputFile, OutputFile: String): Boolean; overload;
 begin
@@ -35,32 +46,30 @@ begin
   if InputFile = InputName then
     InputFile += '.d.ts';
 
-  FileSystem.readFile(InputFile, lambda(err: Variant; data: JNodeBuffer)
-    if not Assigned(data) then
-      Exit;
-    var InputText := data.toString('utf8');
+  var Data := FileSystem.readFileSync(InputFile);
+  if not Assigned(data) then
+    Exit;
+  var InputText := data.toString('utf8');
 
-    {$IFDEF DEBUG}
-    Console.Log('Converting file ' + InputFile);
-    {$ENDIF}
+  {$IFDEF DEBUG}
+  Console.Log('Converting file ' + InputFile);
+  {$ENDIF}
 
-    var Translator := TTranslator.Create;
-    Translator.Name := InputName;
-    var OutputText := Translator.Translate(InputText);
+  var Translator := TTranslator.Create;
+  Translator.Name := InputName;
+  var OutputText := Translator.Translate(InputText);
 
-    Result := OutputText <> '';
+  Result := OutputText <> '';
 
-    if OutputText.Length > 5 then
-      FileSystem.writeFile(OutputFile, OutputText, lambda(Error: Variant)
-        end);
+  if OutputText.Length > 5 then
+    FileSystem.writeFileSync(OutputFile, OutputText);
 
-    {$IFDEF DEBUG}
-    Console.Log('Done!');
-    Console.Log('');
-    {$ENDIF}
+  {$IFDEF DEBUG}
+  Console.Log('Done!');
+  Console.Log('');
+  {$ENDIF}
 
-    Translator := nil;
-  end);
+  Translator := nil;
 end;
 
 function TranslateFile(InputFile: String): Boolean; overload;
@@ -68,6 +77,7 @@ begin
   Result := TranslateFile(InputFile, InputFile.Before('.d.ts') + '.pas');
 end;
 
+{$IFNDEF CommandLine}
 function DelintNode(Node: JNode): Variant;
 begin
   case Node.Kind of
@@ -111,6 +121,7 @@ begin
   end);
 
 end;
+{$ENDIF}
 
 procedure LoadAndTranslate(Url: String);
 begin
@@ -157,6 +168,7 @@ begin
   end);
 end;
 
+{$IFNDEF CommandLine}
 procedure ProcesAllUrls;
 begin
   var URLs = [
@@ -208,5 +220,6 @@ begin
   for var URL in URLs do
     LoadAndTranslate('/DefinitelyTyped/DefinitelyTyped/master/' + URL);
 end;
+{$ENDIF}
 
 end.

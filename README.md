@@ -80,6 +80,7 @@ The following TypeScript definitions still fail for sure:
 
 ## Release History
 
+* 0.5.0 Several notable improvements (in the parser and generator)
 * 0.4.0 Fixed issue with ambigiousness of parenthesized type and function types
 * 0.3.8 Ability to convert URLs (especially from GitHub) as well
 * 0.3.7 Improved source code generation
