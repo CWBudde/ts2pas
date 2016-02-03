@@ -8,6 +8,12 @@ const
 type
   TVisibility = (vPublic, vProtected, vPrivate);
 
+  TAccessibilityModifier = (
+    amPublic,
+    amPrivate,
+    amProtected
+  );
+
   IDeclarationOwner = interface
   end;
 
@@ -40,6 +46,14 @@ type
   end;
 
   TCustomType = class(TCustomDeclaration);
+
+  TTypeParameter = class(TCustomDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Name: String;
+    property ExtendsType: TCustomType;
+  end;
 
   TArrayType = class(TCustomType)
   protected
@@ -114,6 +128,7 @@ type
     property Name: String read GetName;
     property ResultType: TCustomType;
     property ParameterList: array of TFunctionParameter;
+    property TypeParameters: array of TTypeParameter;
     property AsCode[OptionalLevel: Integer]: String read GetAsCodeWithOptionalLevel;
   end;
 
@@ -168,26 +183,11 @@ type
     property Value: String;
   end;
 
-  TEnumerationDeclaration = class(TNamedDeclaration)
+  TTupleType = class(TCustomType)
   protected
     function GetAsCode: String; override;
   public
-    property Items: array of TEnumerationItem;
-  end;
-
-  TFunctionDeclaration = class(TNamedDeclaration)
-  protected
-    function GetAsCode: String; override;
-  public
-    property &Type: TFunctionType;
-  end;
-
-  TTypeParameter = class(TCustomDeclaration)
-  protected
-    function GetAsCode: String; override;
-  public
-    property Name: String;
-    property ExtendsType: TCustomType;
+    property Types: array of TCustomType;
   end;
 
   TCustomTypeMember = class(TNamedDeclaration)
@@ -207,12 +207,19 @@ type
     property Members: array of TCustomTypeMember;
   end;
 
-  TTupleType = class(TCustomType)
+  TParameter = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
+    function GetAsCodeOmitType(OmitType: Boolean): String;
   public
-    property Types: array of TCustomType;
+    property AccessibilityModifier: TAccessibilityModifier;
+    property &Type: TCustomType;
+    property IsOptional: Boolean;
+    property IsRest: Boolean;
+    property DefaultValue: string;
+    property AsCode[OmitType: Boolean]: String read GetAsCodeOmitType;
   end;
+
 
   TIndexSignature = class(TCustomTypeMember)
   protected
@@ -243,23 +250,12 @@ type
     property &Type: TCustomType;
   end;
 
-  TAccessibilityModifier = (
-    amPublic,
-    amPrivate,
-    amProtected
-  );
-
-  TParameter = class(TNamedDeclaration)
+  TConstructorDeclaration = class(TClassTypeMember)
   protected
     function GetAsCode: String; override;
-    function GetAsCodeOmitType(OmitType: Boolean): String;
   public
-    property AccessibilityModifier: TAccessibilityModifier;
+    property ParameterList: array of TParameter;
     property &Type: TCustomType;
-    property IsOptional: Boolean;
-    property IsRest: Boolean;
-    property DefaultValue: string;
-    property AsCode[OmitType: Boolean]: String read GetAsCodeOmitType;
   end;
 
   TCallSignature = class(TCustomTypeMember)
@@ -273,6 +269,13 @@ type
     property AsCode[OptionalLevel: Integer]: String read GetAsCodeWithOptionalLevel;
   end;
 
+  TMethodDeclaration = class(TClassTypeMember)
+  protected
+    function GetAsCode: String; override;
+  public
+    property CallSignature: TCallSignature;
+  end;
+
   TTypeReference = class(TCustomDeclaration)
   protected
     function GetAsCode: String; override;
@@ -281,29 +284,29 @@ type
     property Arguments: array of TTypeArgument;
   end;
 
-  TConstructorDeclaration = class(TClassTypeMember)
-  protected
-    function GetAsCode: String; override;
-  public
-    property ParameterList: array of TParameter;
-    property &Type: TCustomType;
-  end;
-
-  TMethodDeclaration = class(TClassTypeMember)
-  protected
-    function GetAsCode: String; override;
-  public
-    property CallSignature: TCallSignature;
-  end;
-
   TInterfaceDeclaration = class(TCustomDeclaration)
   protected
     function GetAsCode: String; override;
   public
     property Name: String;
     property Extends: array of TTypeReference;
+    property IsExport: Boolean;
     property &Type: TObjectType;
     property TypeParameters: array of TTypeParameter;
+  end;
+
+  TEnumerationDeclaration = class(TNamedDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property Items: array of TEnumerationItem;
+  end;
+
+  TFunctionDeclaration = class(TNamedDeclaration)
+  protected
+    function GetAsCode: String; override;
+  public
+    property &Type: TFunctionType;
   end;
 
   TClassDeclaration = class(TInterfaceDeclaration)
@@ -311,6 +314,7 @@ type
     function GetAsCode: String; override;
   public
     property Implements: array of TTypeReference;
+    property IsAbstract: Boolean;
     property Members: array of TCustomTypeMember;
   end;
 
@@ -376,6 +380,7 @@ type
     property Extends: array of TTypeReference;
     property Implements: array of String;
     property Members: array of TAmbientBodyElement;
+    property TypeParameters: array of TTypeParameter;
   end;
 
   TAmbientPropertyMemberDeclaration = class(TAmbientBodyElement)
@@ -411,6 +416,7 @@ type
     property Interfaces: array of TInterfaceDeclaration;
     property Variables: array of TAmbientVariableDeclaration;
     property Namespaces: array of TAmbientNamespaceDeclaration;
+    property TypeAliases: array of TTypeAlias;
   end;
 
   TAmbientConstructorDeclaration = class(TAmbientBodyElement)
@@ -481,7 +487,7 @@ begin
   if LowerCase(Name) in ['abstract', 'class', 'const', 'constructor', 'default',
     'div', 'end', 'export', 'external', 'function', 'interface', 'label',
     'object', 'private', 'property', 'protected', 'public', 'string', 'type',
-    'uses'] then
+    'unit', 'uses'] then
     Result := '&' + Result;
   if LowerCase(Name) in ['length', 'include', 'exclude'] then
     Result := '_' + Result;
@@ -943,9 +949,10 @@ begin
 
   Head := GetIndentionString;
   Head += if Assigned(CallSignature.&Type) then 'function' else 'procedure';
-  Head += ' ' + Name;
+  Head += ' ' + Escape(Name);
 
-  Foot := if OptionalParameterCount > 0 then ' overload;';
+  Foot := ';';
+  Foot += if OptionalParameterCount > 0 then ' overload;';
   Foot += CRLF;
 
   Result := '';
@@ -1013,12 +1020,12 @@ begin
       Result += GetIndentionString;
       var ResType := TCallSignature(Member).&Type;
       Result += if Assigned(ResType) then 'function' else 'procedure';
-      Result += Member.AsCode + CRLF
+      Result += Member.AsCode + ';' + CRLF
     end
     else
       Result += Member.AsCode;
   EndIndention;
-  Result += GetIndentionString + 'end;';
+  Result += GetIndentionString + 'end';
 end;
 
 
@@ -1154,7 +1161,12 @@ begin
   end;
 
   if Assigned(&Type) then
-    Result += ': ' + &Type.AsCode;
+  begin
+    Result += ': ';
+    if &Type is TObjectType then
+      Result += 'record' + CRLF;
+    Result += &Type.AsCode;
+  end;
 
   Result += ';';
 end;
@@ -1214,7 +1226,12 @@ begin
   end;
 
   if Assigned(&Type) then
-    Result += ': ' + &Type.AsCode;
+  begin
+    Result += ': ';
+    if &Type is TObjectType then
+      Result += 'record' + CRLF;
+    Result += &Type.AsCode;
+  end;
 end;
 
 
@@ -1389,7 +1406,7 @@ begin
   Result += &Type.AsCode;
 
   // line breaks
-  Result += CRLF + CRLF;
+  Result += ';' + CRLF + CRLF;
 end;
 
 
@@ -1494,6 +1511,7 @@ begin
 
       LastVisibility := CurrentVisibility;
     end;
+
     Result += Member.AsCode;
   end;
   EndIndention;
@@ -1535,7 +1553,7 @@ begin
   Head += ' ' + Escape(Name);
 
   Foot := if OptionalParameterCount > 0 then ' overload;';
-  Foot += CRLF;
+  Foot += ';' + CRLF;
 
   Result := '';
   for var i := 0 to OptionalParameterCount do
@@ -1603,7 +1621,7 @@ begin
     Result += CRLF;
   end;
 
-  if Enums.Count + Classes.Count + Interfaces.Count > 0 then
+  if Enums.Count + Classes.Count + Interfaces.Count + TypeAliases.Count > 0 then
   begin
     Result += 'type' + CRLF;
     BeginIndention;
@@ -1616,6 +1634,9 @@ begin
 
     for var &Interface in Interfaces do
       Result += &Interface.AsCode;
+
+    for var TypeAlias in TypeAliases do
+      Result += TypeAlias.AsCode;
 
     EndIndention;
   end;

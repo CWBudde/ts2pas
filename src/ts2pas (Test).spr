@@ -1,8 +1,6 @@
 uses
   ts2pas.Main;
 
-TranslateDirectory('TypeScriptDefs/');
-
 //TranslateFile('TypeScriptDefs/angular'); // FunctionType parameter vs. ParenthesizedType
 //TranslateFile('TypeScriptDefs/lodash'); // FunctionType parameter vs. ParenthesizedType
 //TranslateFile('TypeScriptDefs/baconjs');
@@ -13,6 +11,18 @@ TranslateDirectory('TypeScriptDefs/');
 //TranslateFile('TypeScriptDefs/winrt-uwp');
 //TranslateFile('TypeScriptDefs/mendixmodelsdk');
 
+//TranslateFile('TypeScriptDefs/mendixmodelsdk');
+
+
+//TranslateFile('TypeScriptDefs/angular-resource');
+//TranslateFile('TypeScriptDefs/bezier-easing');
+//TranslateFile('TypeScriptDefs/blissfuljs');
+//TranslateFile('TypeScriptDefs/bluebird-1.0');
+
+TranslateFile('TypeScriptDefs/space-pen');
+//TranslateFile('TypeScriptDefs/atom');
+
+//TranslateDirectory('TypeScriptDefs/');
 
 
 (* * )
@@ -25,8 +35,20 @@ TranslateFile('TypeScriptDefs/acorn');
 TranslateFile('TypeScriptDefs/amazon-product-api');
 TranslateFile('TypeScriptDefs/AmCharts');
 TranslateFile('TypeScriptDefs/amplifyjs');
+TranslateFile('TypeScriptDefs/amqplib');
+TranslateFile('TypeScriptDefs/analytics-node');
+TranslateFile('TypeScriptDefs/angular-1.2.d.ts');
+TranslateFile('TypeScriptDefs/angular-formly');
+TranslateFile('TypeScriptDefs/angular-protractor');
 TranslateFile('TypeScriptDefs/arcgis-js-api');
+TranslateFile('TypeScriptDefs/assertsharp');
+TranslateFile('TypeScriptDefs/axios');
 TranslateFile('TypeScriptDefs/babylon');
+TranslateFile('TypeScriptDefs/base-x');
+TranslateFile('TypeScriptDefs/better-curry');
+TranslateFile('TypeScriptDefs/bignum');
+TranslateFile('TypeScriptDefs/bluebird');
+TranslateFile('TypeScriptDefs/bookshelf');
 TranslateFile('TypeScriptDefs/box2dweb');
 TranslateFile('TypeScriptDefs/browserify');
 TranslateFile('TypeScriptDefs/chrome');

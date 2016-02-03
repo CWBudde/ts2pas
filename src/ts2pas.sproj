@@ -2,7 +2,7 @@
   <Project version="2" subversion="0">
     <Name>ts2pas</Name>
     <Created>T00:00:00.000</Created>
-    <Modified>2016-02-01T15:00:28.225</Modified>
+    <Modified>2016-02-03T14:16:54.221</Modified>
     <Author>Christian-W. Budde</Author>
     <Description>TypeScript to Object Pascal translator</Description>
     <Keywords>TypeScript, Object Pascal</Keywords>
@@ -51,7 +51,7 @@
         <SmartLinking>0</SmartLinking>
         <Verbosity>0</Verbosity>
       </Codegen>
-      <ConditionalDefines>_DEBUG
+      <ConditionalDefines>CommandLine
         <HandleExceptions>0</HandleExceptions>
         <AutoRefresh>0</AutoRefresh>
         <LegacySupportForIE>0</LegacySupportForIE>
@@ -108,7 +108,7 @@
       <File type="unit">
         <Name>ts2pas.Main</Name>
         <Created>2016-01-23T01:44:37.996Z</Created>
-        <Modified>2016-01-23T01:45:35.497</Modified>
+        <Modified>2016-02-03T14:16:54.219</Modified>
         <Filename>ts2pas.Main.pas</Filename>
       </File>
       <File type="javascript" Template="1">
@@ -121,10 +121,10 @@
     <Target>Node.js</Target>
     <Generator>Node.js Project</Generator>
     <Statistics>
-      <BackgroundCompilations>12728</BackgroundCompilations>
-      <EditTime>05:59:37.501</EditTime>
-      <CompileTime>00:16:31.801</CompileTime>
-      <TotalTime>02:34:26.241</TotalTime>
+      <BackgroundCompilations>12778</BackgroundCompilations>
+      <EditTime>06:00:27.832</EditTime>
+      <CompileTime>00:16:42.268</CompileTime>
+      <TotalTime>02:37:03.770</TotalTime>
       <DesigningTime>00:00:00.000</DesigningTime>
       <RunningTime>00:00:00.000</RunningTime>
     </Statistics>

@@ -162,38 +162,6 @@ begin
     HandleScanError;
 end;
 
-procedure TTranslator.ReadDefinition;
-var
-  DefinitionTokens: array of TSyntaxKind = [TSyntaxKind.ExportKeyword,
-    TSyntaxKind.DeclareKeyword, TSyntaxKind.InterfaceKeyword,
-    TSyntaxKind.ModuleKeyword, TSyntaxKind.ImportKeyword,
-    TSyntaxKind.EndOfFileToken];
-begin
-  ReadToken(DefinitionTokens, True);
-  while CurrentToken <> TSyntaxKind.EndOfFileToken do
-  begin
-    // ignore export token (for now)
-    case CurrentToken of
-      TSyntaxKind.ExportKeyword:
-        begin
-          ReadToken(DefinitionTokens, True);
-          continue;
-        end;
-      TSyntaxKind.DeclareKeyword:
-        FDeclarations.Add(ReadAmbientDeclaration);
-      TSyntaxKind.InterfaceKeyword:
-        FInterfaces.Add(ReadInterfaceDeclaration);
-      TSyntaxKind.ModuleKeyword:
-        FModules.Add(ReadModuleDeclaration);
-      TSyntaxKind.ImportKeyword:
-        FImports.Add(ReadImportDeclaration);
-    end;
-
-    if CurrentToken in [TSyntaxKind.CloseBraceToken, TSyntaxKind.SemicolonToken] then
-      ReadToken(DefinitionTokens, True);
-  end;
-end;
-
 function TTranslator.ReadEnumerationItem: TEnumerationItem;
 var
   IgnoreKeywords: array of TSyntaxKind = [TSyntaxKind.EnumKeyword,
@@ -283,9 +251,18 @@ end;
 function TTranslator.ReadFunctionType: TFunctionType;
 begin
   // sanity check
-  AssumeToken(TSyntaxKind.OpenParenToken);
+  AssumeToken([TSyntaxKind.OpenParenToken, TSyntaxKind.LessThanToken]);
 
   Result := TFunctionType.Create(Self as IDeclarationOwner);
+
+  if CurrentToken = TSyntaxKind.LessThanToken then
+  begin
+    repeat
+      Result.TypeParameters.Add(ReadTypeParameter);
+    until CurrentToken <> TSyntaxKind.CommaToken;
+
+    ReadToken(TSyntaxKind.OpenParenToken, True);
+  end;
 
   while ReadIdentifier([TSyntaxKind.DotDotDotToken]) do
   begin
@@ -479,8 +456,9 @@ var
     TSyntaxKind.NumberKeyword, TSyntaxKind.StringKeyword,
     TSyntaxKind.BooleanKeyword, TSyntaxKind.VoidKeyword,
     TSyntaxKind.TypeOfKeyword, TSyntaxKind.ThisKeyword,
-    TSyntaxKind.NewKeyword, TSyntaxKind.OpenBraceToken,
-    TSyntaxKind.OpenParenToken, TSyntaxKind.OpenBracketToken];
+    TSyntaxKind.NewKeyword, TSyntaxKind.LessThanToken,
+    TSyntaxKind.OpenBraceToken, TSyntaxKind.OpenParenToken,
+    TSyntaxKind.OpenBracketToken];
 begin
   // store text position
   var TextPos := FScanner.TextPos;
@@ -526,6 +504,9 @@ begin
     if IsFunctionType then
       Exit(ReadFunctionType);
   end;
+
+  if CurrentToken = TSyntaxKind.LessThanToken then
+    Exit(ReadFunctionType);
 
   if CurrentToken = TSyntaxKind.NewKeyword then
     Exit(ReadConstructorType);
@@ -819,11 +800,12 @@ end;
 
 function TTranslator.ReadNamespaceDeclaration: TNamespaceDeclaration;
 var
-  NamespaceTokens: array of TSyntaxKind = [TSyntaxKind.ClassKeyword,
-    TSyntaxKind.DeclareKeyword, TSyntaxKind.ExportKeyword,
-    TSyntaxKind.EnumKeyword, TSyntaxKind.ImportKeyword,
-    TSyntaxKind.FunctionKeyword, TSyntaxKind.InterfaceKeyword,
-    TSyntaxKind.SemicolonToken, TSyntaxKind.CloseBraceToken];
+  NamespaceTokens: array of TSyntaxKind = [TSyntaxKind.AbstractKeyword,
+    TSyntaxKind.ClassKeyword, TSyntaxKind.DeclareKeyword,
+    TSyntaxKind.ExportKeyword, TSyntaxKind.EnumKeyword,
+    TSyntaxKind.ImportKeyword, TSyntaxKind.FunctionKeyword,
+    TSyntaxKind.InterfaceKeyword, TSyntaxKind.SemicolonToken,
+    TSyntaxKind.CloseBraceToken];
 begin
   AssumeToken(TSyntaxKind.NamespaceKeyword);
 
@@ -840,9 +822,17 @@ begin
   ReadToken(NamespaceTokens, True);
   while CurrentToken <> TSyntaxKind.CloseBraceToken do
   begin
+    var IsAbstract := CurrentToken = TSyntaxKind.AbstractKeyword;
+    if IsAbstract then
+      ReadToken([TSyntaxKind.ClassKeyword], True);
+
     case CurrentToken of
       TSyntaxKind.ClassKeyword:
-        Result.Classes.Add(ReadClassDeclaration);
+        begin
+          var ClassDeclaration := ReadClassDeclaration;
+          ClassDeclaration.IsAbstract := IsAbstract;
+          Result.Classes.Add(ClassDeclaration);
+        end;
       TSyntaxKind.EnumKeyword:
         ReadEnumerationDeclaration;
       TSyntaxKind.FunctionKeyword:
@@ -969,7 +959,8 @@ begin
       end;
   end;
 
-  ReadToken(TSyntaxKind.SemicolonToken, True);
+  if NeedsSemicolon then
+    ReadToken(TSyntaxKind.SemicolonToken, True);
 end;
 
 function TTranslator.ReadVariableDeclaration: TVariableDeclaration;
@@ -1064,10 +1055,13 @@ var
     TSyntaxKind.OpenParenToken, TSyntaxKind.OpenBracketToken];
   IgnoredKeywords: array of TSyntaxKind = [
     TSyntaxKind.CatchKeyword, TSyntaxKind.ClassKeyword,
-    TSyntaxKind.ContinueKeyword, TSyntaxKind.DefaultKeyword,
-    TSyntaxKind.DeleteKeyword, TSyntaxKind.ExportKeyword,
+    TSyntaxKind.ContinueKeyword, TSyntaxKind.DebuggerKeyword,
+    TSyntaxKind.DefaultKeyword, TSyntaxKind.DeleteKeyword,
+    TSyntaxKind.ExportKeyword, TSyntaxKind.ExtendsKeyword,
     TSyntaxKind.FinallyKeyword, TSyntaxKind.ForKeyword,
-    TSyntaxKind.ImportKeyword, TSyntaxKind.InKeyword];
+    TSyntaxKind.ImportKeyword, TSyntaxKind.InKeyword,
+    TSyntaxKind.ReturnKeyword, TSyntaxKind.ThisKeyword,
+    TSyntaxKind.ThrowKeyword, TSyntaxKind.TryKeyword];
 begin
   // store text position
   var TextPos := FScanner.TextPos;
@@ -1130,10 +1124,13 @@ var
     TSyntaxKind.OpenBracketToken, TSyntaxKind.CloseBraceToken];
   IgnoredKeywords: array of TSyntaxKind = [
     TSyntaxKind.CatchKeyword, TSyntaxKind.ClassKeyword,
-    TSyntaxKind.ContinueKeyword, TSyntaxKind.DefaultKeyword,
-    TSyntaxKind.DeleteKeyword, TSyntaxKind.ExportKeyword,
+    TSyntaxKind.ContinueKeyword, TSyntaxKind.DebuggerKeyword,
+    TSyntaxKind.DefaultKeyword, TSyntaxKind.DeleteKeyword,
+    TSyntaxKind.ExportKeyword, TSyntaxKind.ExtendsKeyword,
     TSyntaxKind.FinallyKeyword, TSyntaxKind.ForKeyword,
-    TSyntaxKind.ImportKeyword, TSyntaxKind.InKeyword];
+    TSyntaxKind.ImportKeyword, TSyntaxKind.InKeyword,
+    TSyntaxKind.ReturnKeyword, TSyntaxKind.ThisKeyword,
+    TSyntaxKind.ThrowKeyword, TSyntaxKind.TryKeyword];
 begin
   // assume we're at an open brace
   AssumeToken(TSyntaxKind.OpenBraceToken);
@@ -1483,7 +1480,7 @@ begin
   ReadToken(TSyntaxKind.OpenParenToken, True);
 
   Result := TAmbientConstructorDeclaration.Create(Self as IDeclarationOwner);
-  while ReadIdentifier do
+  while ReadIdentifier([TSyntaxKind.DotDotDotToken]) do
   begin
     Result.ParameterList.Add(ReadFunctionParameter);
 
@@ -1592,6 +1589,9 @@ end;
 
 function TTranslator.ReadAmbientClassDeclaration: TAmbientClassDeclaration;
 var
+  ClassDeclarationTokens: array of TSyntaxKind = [TSyntaxKind.ExtendsKeyword,
+    TSyntaxKind.ImplementsKeyword, TSyntaxKind.OpenBraceToken,
+    TSyntaxKind.LessThanToken];
   ClassElementTokens: array of TSyntaxKind = [TSyntaxKind.ConstructorKeyword,
     TSyntaxKind.PrivateKeyword, TSyntaxKind.ProtectedKeyword,
     TSyntaxKind.PublicKeyword, TSyntaxKind.StaticKeyword,
@@ -1609,8 +1609,18 @@ begin
 
   {$IFDEF DEBUG} Console.Log('Read ambient class: ' + Result.Name); {$ENDIF}
 
-  ReadToken([TSyntaxKind.ExtendsKeyword, TSyntaxKind.ImplementsKeyword,
-    TSyntaxKind.OpenBraceToken, TSyntaxKind.LessThanToken], True);
+  ReadToken(ClassDeclarationTokens, True);
+
+  if CurrentToken = TSyntaxKind.LessThanToken then
+  begin
+    ClassDeclarationTokens -= TSyntaxKind.LessThanToken;
+    repeat
+      Result.TypeParameters.Add(ReadTypeParameter);
+    until CurrentToken <> TSyntaxKind.CommaToken;
+
+    AssumeToken(TSyntaxKind.GreaterThanToken);
+    ReadToken(ClassDeclarationTokens, True);
+  end;
 
   if CurrentToken = TSyntaxKind.ExtendsKeyword then
   begin
@@ -1627,15 +1637,6 @@ begin
       ReadIdentifier(True);
       Result.Implements.Add(ReadIdentifierPath);
     end;
-  end;
-
-  if CurrentToken = TSyntaxKind.LessThanToken then
-  begin
-    repeat
-      {TypeParameters.Add(}ReadTypeParameter{);}
-    until CurrentToken <> TSyntaxKind.CommaToken;
-
-    ReadToken([TSyntaxKind.OpenBraceToken], True);
   end;
 
   // ensure the current token is an open brace
@@ -1661,7 +1662,7 @@ var
     TSyntaxKind.EnumKeyword, TSyntaxKind.ImportKeyword,
     TSyntaxKind.FunctionKeyword, TSyntaxKind.InterfaceKeyword,
     TSyntaxKind.VarKeyword, TSyntaxKind.SemicolonToken,
-    TSyntaxKind.CloseBraceToken];
+    TSyntaxKind.TypeKeyword, TSyntaxKind.CloseBraceToken];
 begin
   AssumeToken(TSyntaxKind.NamespaceKeyword);
 
@@ -1691,8 +1692,15 @@ begin
         Result.Functions.Add(ReadAmbientFunctionDeclaration);
       TSyntaxKind.ImportKeyword:
         ReadImportDeclaration;
+      TSyntaxKind.TypeKeyword:
+        Result.TypeAliases.Add(ReadTypeAliasDeclaration);
       TSyntaxKind.InterfaceKeyword:
-        Result.Interfaces.Add(ReadInterfaceDeclaration);
+        begin
+          Result.Interfaces.Add(ReadInterfaceDeclaration);
+
+          // we're at a closing brace, so we have to advance
+          ReadToken(AmbientNamespaceTokens, True);
+        end;
       TSyntaxKind.VarKeyword:
         Result.Variables.Add(ReadAmbientVariableDeclaration);
     end;
@@ -1745,9 +1753,11 @@ begin
       begin
         // handle this directly
         IsExport := False;
-        ReadIdentifier;
 
-        ReadToken(ModuleTokens, True);
+        ReadIdentifier([TSyntaxKind.ClassKeyword], True);
+
+        if CurrentToken <> TSyntaxKind.ClassKeyword then
+          ReadToken(ModuleTokens, True);
       end;
 
       if CurrentToken = TSyntaxKind.EqualsToken then
@@ -1756,7 +1766,10 @@ begin
         IsExport := False;
         ReadIdentifier;
 
-        ReadToken(ModuleTokens, True);
+        ReadIdentifierPath;
+
+        // ReadToken(ModuleTokens, True); // do no scan for further tokens here
+        continue;
       end;
     end;
 
@@ -1834,7 +1847,48 @@ end;
 
 
 
+procedure TTranslator.ReadDefinition;
+var
+  DefinitionTokens: array of TSyntaxKind = [TSyntaxKind.ExportKeyword,
+    TSyntaxKind.DeclareKeyword, TSyntaxKind.InterfaceKeyword,
+    TSyntaxKind.ModuleKeyword, TSyntaxKind.ImportKeyword,
+    TSyntaxKind.EndOfFileToken];
+begin
+  ReadToken(DefinitionTokens, True);
+  while CurrentToken <> TSyntaxKind.EndOfFileToken do
+  begin
+    var IsExport := CurrentToken = TSyntaxKind.ExportKeyword;
+    if IsExport then
+    begin
+      var ExportTokens := DefinitionTokens;
+      ExportTokens -= TSyntaxKind.ExportKeyword;
+      ReadToken(ExportTokens, True);
+    end;
 
+    // ignore export token (for now)
+    case CurrentToken of
+      TSyntaxKind.DeclareKeyword:
+        FDeclarations.Add(ReadAmbientDeclaration);
+      TSyntaxKind.InterfaceKeyword:
+        begin
+          var &Interface := ReadInterfaceDeclaration;
+          &Interface.IsExport := IsExport;
+          FInterfaces.Add(&Interface);
+
+          // advance to next definition
+          AssumeToken(TSyntaxKind.CloseBraceToken);
+          ReadToken(DefinitionTokens, True);
+        end;
+      TSyntaxKind.ModuleKeyword:
+        FModules.Add(ReadModuleDeclaration);
+      TSyntaxKind.ImportKeyword:
+        FImports.Add(ReadImportDeclaration);
+    end;
+
+    if CurrentToken in [TSyntaxKind.CloseBraceToken, TSyntaxKind.SemicolonToken] then // do not use TSyntaxKind.CloseBraceToken
+      ReadToken(DefinitionTokens, True);
+  end;
+end;
 
 procedure TTranslator.HandleScanError(Expected: TSyntaxKind = TSyntaxKind.Unknown);
 begin
@@ -1866,6 +1920,12 @@ end;
 
 function TTranslator.BuildPascalHeader: String;
 begin
+  Result := '';
+
+  // eventually omit writing header for empty translations
+  if FImports.Count + FModules.Count + FInterfaces.Count + FDeclarations.Count = 0 then
+    Exit;
+
   Result := 'unit ' + GetUnitName(Name) + ';' + CRLF + CRLF;
   Result += 'interface' + CRLF + CRLF;
 
