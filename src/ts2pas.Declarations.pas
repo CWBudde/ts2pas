@@ -484,9 +484,10 @@ uses
 function Escape(Name: String): String;
 begin
   Result := Name;
-  if LowerCase(Name) in ['abstract', 'class', 'const', 'constructor', 'default',
-    'div', 'end', 'export', 'external', 'function', 'interface', 'label',
-    'object', 'private', 'property', 'protected', 'public', 'string', 'type',
+  if LowerCase(Name) in ['abstract', 'begin', 'class', 'const', 'constructor', 
+    'default', 'div', 'end', 'exit', 'export', 'external', 'function', 
+    'interface', 'label', 'method', 'object', 'private', 'property', 
+    'protected', 'public', 'repeat', 'string', 'then', 'type', 
     'unit', 'uses'] then
     Result := '&' + Result;
   if LowerCase(Name) in ['length', 'include', 'exclude'] then

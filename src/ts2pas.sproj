@@ -1,8 +1,8 @@
 <SMART>
-  <Project version="2" subversion="0">
+  <Project version="2" subversion="2">
     <Name>ts2pas</Name>
     <Created>T00:00:00.000</Created>
-    <Modified>2016-02-03T14:16:54.221</Modified>
+    <Modified>2016-04-13T13:53:17.280</Modified>
     <Author>Christian-W. Budde</Author>
     <Description>TypeScript to Object Pascal translator</Description>
     <Keywords>TypeScript, Object Pascal</Keywords>
@@ -48,7 +48,7 @@
         <Devirtualize>1</Devirtualize>
         <MainBody>0</MainBody>
         <CodePacking>1</CodePacking>
-        <SmartLinking>0</SmartLinking>
+        <SmartLinking>1</SmartLinking>
         <Verbosity>0</Verbosity>
       </Codegen>
       <ConditionalDefines>CommandLine
@@ -121,10 +121,10 @@
     <Target>Node.js</Target>
     <Generator>Node.js Project</Generator>
     <Statistics>
-      <BackgroundCompilations>12778</BackgroundCompilations>
-      <EditTime>06:00:27.832</EditTime>
-      <CompileTime>00:16:42.268</CompileTime>
-      <TotalTime>02:37:03.770</TotalTime>
+      <BackgroundCompilations>12784</BackgroundCompilations>
+      <EditTime>06:00:32.185</EditTime>
+      <CompileTime>00:16:45.841</CompileTime>
+      <TotalTime>02:37:18.101</TotalTime>
       <DesigningTime>00:00:00.000</DesigningTime>
       <RunningTime>00:00:00.000</RunningTime>
     </Statistics>
