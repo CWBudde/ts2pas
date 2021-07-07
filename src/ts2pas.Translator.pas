@@ -41,7 +41,6 @@ type
     function ReadType: TCustomType;
     function ReadVariableDeclaration: TVariableDeclaration;
 
-
     function ReadTypeAliasDeclaration: TTypeAlias;
     function ReadTypeMember: TCustomTypeMember;
     function ReadParameter: TParameter;
@@ -94,6 +93,7 @@ type
 
     property Name: String;
     property NeedsSemicolon: Boolean;
+    property UnitOutputName: String;
   end;
 
 implementation
@@ -366,7 +366,8 @@ var
     TSyntaxKind.BooleanKeyword, TSyntaxKind.VoidKeyword,
     TSyntaxKind.TypeOfKeyword, TSyntaxKind.ThisKeyword,
     TSyntaxKind.OpenBraceToken, TSyntaxKind.OpenParenToken,
-    TSyntaxKind.OpenBracketToken];
+    TSyntaxKind.OpenBracketToken, TSyntaxKind.ObjectKeyword,
+    TSyntaxKind.NullKeyword];
 begin
   // read type
   AssumeToken(PrimaryTypeTokens);
@@ -436,6 +437,16 @@ begin
         Result := ReadTupleType;
         ReadToken;
       end;
+    TSyntaxKind.ObjectKeyword:
+      begin
+        Result := TJSObject.Create(Self as IDeclarationOwner);
+        ReadToken;
+      end;
+    TSyntaxKind.NullKeyword:
+      begin
+        Result := TNullType.Create(Self as IDeclarationOwner);
+        ReadToken;
+      end;
   end;
 
   while CurrentToken = TSyntaxKind.OpenBracketToken do
@@ -458,7 +469,8 @@ var
     TSyntaxKind.TypeOfKeyword, TSyntaxKind.ThisKeyword,
     TSyntaxKind.NewKeyword, TSyntaxKind.LessThanToken,
     TSyntaxKind.OpenBraceToken, TSyntaxKind.OpenParenToken,
-    TSyntaxKind.OpenBracketToken];
+    TSyntaxKind.OpenBracketToken, TSyntaxKind.ObjectKeyword,
+    TSyntaxKind.NullKeyword];
 begin
   // store text position
   var TextPos := FScanner.TextPos;
@@ -1061,7 +1073,8 @@ var
     TSyntaxKind.FinallyKeyword, TSyntaxKind.ForKeyword,
     TSyntaxKind.ImportKeyword, TSyntaxKind.InKeyword,
     TSyntaxKind.ReturnKeyword, TSyntaxKind.ThisKeyword,
-    TSyntaxKind.ThrowKeyword, TSyntaxKind.TryKeyword];
+    TSyntaxKind.ThrowKeyword, TSyntaxKind.TryKeyword,
+    TSyntaxKind.FunctionKeyword];
 begin
   // store text position
   var TextPos := FScanner.TextPos;
@@ -1265,6 +1278,8 @@ begin
 
   ReadIdentifier(True);
   Result.Name := CurrentTokenText;
+
+  {$IFDEF DEBUG} Console.Log('Read type: ' + Result.Name); {$ENDIF}
 
   ReadToken([TSyntaxKind.LessThanToken, TSyntaxKind.EqualsToken], True);
   if CurrentToken = TSyntaxKind.LessThanToken then
@@ -1721,7 +1736,8 @@ var
     TSyntaxKind.ClassKeyword, TSyntaxKind.InterfaceKeyword,
     TSyntaxKind.EnumKeyword, TSyntaxKind.ModuleKeyword,
     TSyntaxKind.NamespaceKeyword, TSyntaxKind.ImportKeyword,
-    TSyntaxKind.CloseBraceToken, TSyntaxKind.SemicolonToken];
+    TSyntaxKind.CloseBraceToken, TSyntaxKind.SemicolonToken,
+    TSyntaxKind.AbstractKeyword, TSyntaxKind.TypeKeyword];
 begin
   // assume we're at a module
   AssumeToken(TSyntaxKind.ModuleKeyword);
@@ -1773,6 +1789,11 @@ begin
       end;
     end;
 
+    var IsAbstract := CurrentToken = TSyntaxKind.AbstractKeyword;
+
+    if IsAbstract then
+      ReadToken([TSyntaxKind.ClassKeyword], True);
+
     case CurrentToken of
       TSyntaxKind.VarKeyword, TSyntaxKind.LetKeyword:
         Result.Variables.Add(ReadAmbientVariableDeclaration);
@@ -1791,7 +1812,6 @@ begin
 
             Result.Variables.Add(Variable);
           end;
-          ReadToken(ModuleTokens, True);
         end;
       TSyntaxKind.TypeKeyword:
         Result.TypeAliases.Add(ReadTypeAliasDeclaration);
@@ -1804,7 +1824,11 @@ begin
         end;
       TSyntaxKind.ClassKeyword:
         begin
-          Result.Classes.Add(ReadClassDeclaration);
+          var NewClass := ReadClassDeclaration;
+          NewClass.IsAbstract := IsAbstract;
+
+          Result.Classes.Add(NewClass);
+
           ReadToken(ModuleTokens, True);
         end;
       TSyntaxKind.ModuleKeyword:
@@ -1842,10 +1866,6 @@ function TTranslator.ReadAmbientEnumDeclaration: TEnumerationDeclaration;
 begin
   Result := ReadEnumerationDeclaration;
 end;
-
-
-
-
 
 procedure TTranslator.ReadDefinition;
 var
@@ -1912,7 +1932,7 @@ begin
     Exit('Unknown');
   var Items := FileName.Split('\');
   Result := Items[High(Items)];
-  Items := FileName.Split('/');
+  Items := Result.Split('/');
   Result := Items[High(Items)];
   Result := Result.Replace('-', '_');
   Result[1] := Uppercase(Result[1]);
@@ -1926,7 +1946,12 @@ begin
   if FImports.Count + FModules.Count + FInterfaces.Count + FDeclarations.Count = 0 then
     Exit;
 
-  Result := 'unit ' + GetUnitName(Name) + ';' + CRLF + CRLF;
+  var OutputName := Name;
+
+  if UnitOutputName.Length > 0 then
+    OutputName := UnitOutputName;
+
+  Result := 'unit ' + GetUnitName(OutputName) + ';' + CRLF + CRLF;
   Result += 'interface' + CRLF + CRLF;
 
   for var Import in FImports do

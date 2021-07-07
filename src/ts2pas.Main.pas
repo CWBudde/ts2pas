@@ -17,7 +17,7 @@ procedure ProcesAllUrls;
 
 implementation
 
-var FileSystem := fs;
+var FileSystem := NodeFsAPI;
 
 {$IFNDEF CommandLine}
 procedure TranslateDirectory(Directory: String);
@@ -57,6 +57,7 @@ begin
 
   var Translator := TTranslator.Create;
   Translator.Name := InputName;
+  Translator.UnitOutputName := OutputFile;
   var OutputText := Translator.Translate(InputText);
 
   Result := OutputText <> '';
@@ -111,7 +112,7 @@ begin
   if InputFile = InputFile.Before('.d.ts') then
     InputFile += '.d.ts';
 
-  FileSystem.readFile(InputFile, lambda(err: Variant; data: JNodeBuffer)
+  FileSystem.readFile(InputFile, lambda(err: JError; data: JNodeBuffer)
     var InputText := data.toString('utf8');
 
     var SourceFile := TypeScriptExport.createSourceFile(InputFile, InputText,
@@ -153,7 +154,7 @@ begin
 
       Console.Log('Writing: ' + OutputFile);
       if OutputText.Length > 5 then
-        FileSystem.writeFile(OutputFile, OutputText, lambda(Error: Variant)
+        FileSystem.writeFile(OutputFile, OutputText, lambda(Error: JError)
           end);
 
       {$IFDEF DEBUG}
