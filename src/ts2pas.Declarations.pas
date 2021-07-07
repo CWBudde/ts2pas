@@ -109,6 +109,11 @@ type
     function GetName: String; override;
   end;
 
+  TJSObject = class(TPredefinedType)
+  protected
+    function GetName: String; override;
+  end;
+
   TFunctionParameter = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
@@ -188,6 +193,11 @@ type
     function GetAsCode: String; override;
   public
     property Types: array of TCustomType;
+  end;
+
+  TNullType = class(TCustomType)
+  protected
+    function GetAsCode: String; override;
   end;
 
   TCustomTypeMember = class(TNamedDeclaration)
@@ -440,9 +450,6 @@ type
     property Namespaces: array of TNamespaceDeclaration;
     property Interfaces: array of TInterfaceDeclaration;
   end;
-
-
-
 
   TVariableDeclaration = class(TNamedDeclaration)
   protected
@@ -1355,7 +1362,7 @@ end;
 
 function TClassDeclaration.GetAsCode: String;
 begin
-  {$IFDEF DEBUG} Console.Log('Write interface: ' + Name); {$ENDIF}
+  {$IFDEF DEBUG} Console.Log('Write external class: ' + Name); {$ENDIF}
 
   Result += GetIndentionString + 'J' + Name + ' = class external ''' + Name + '''';
   if Extends.Count > 0 then
@@ -1440,16 +1447,31 @@ begin
   Result := 'J' + Name;
   if Arguments.Length > 0 then
   begin
-    Result += ' {' + Arguments[0].AsCode;
+    Result += ' <' + Arguments[0].AsCode;
     for var Index := Low(Arguments) + 1 to High(Arguments) do
       Result += ', ' + Arguments[Index].AsCode;
-    Result += '} ';
+    Result += '> ';
   end;
 end;
 
+{ TTypeAlias }
+
 function TTypeAlias.GetAsCode: String;
 begin
-  Result := GetIndentionString + Name + ' = ' + &Type.AsCode + ';' + CRLF;
+  {$IFDEF DEBUG} Console.Log('Write type: ' + Name); {$ENDIF}
+
+  var IsObject := &Type is TObjectType;
+  Result := GetIndentionString;
+
+  if IsObject then
+    Result += 'T';
+
+  Result += Name + ' = ';
+
+  if IsObject then
+    Result += 'class' + CRLF;
+
+  Result += &Type.AsCode + ';' + CRLF + CRLF
 end;
 
 
@@ -1666,6 +1688,20 @@ begin
   Result += CRLF;
 
   EndNameSpace;
+end;
+
+{ TJSObject }
+
+function TJSObject.GetName: String;
+begin
+  Result := 'TJSObject';
+end;
+
+{ TNullType }
+
+function TNullType.GetAsCode: String;
+begin
+  Result := '';
 end;
 
 end.
