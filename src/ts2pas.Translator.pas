@@ -1936,6 +1936,7 @@ begin
   Result := Items[High(Items)];
   Result := Result.Replace('-', '_');
   Result[1] := Uppercase(Result[1]);
+  Result := Result.Replace('.pas', '');
 end;
 
 function TTranslator.BuildPascalHeader: String;
@@ -1971,6 +1972,8 @@ begin
 
   for var Declaration in FDeclarations do
     Result := Result + Declaration.AsCode;
+
+  Result += 'implementation' + CRLF + CRLF + 'end.' + CRLF;
 end;
 
 function TTranslator.Translate(Source: String): String;
