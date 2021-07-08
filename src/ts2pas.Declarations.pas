@@ -79,6 +79,7 @@ type
 
   TTypeOfType = class(TCustomNamedType)
   protected
+    function GetAsCode: String; override;
     function GetName: String; override;
   public
     property &Type: TCustomType;
@@ -297,7 +298,9 @@ type
   TInterfaceDeclaration = class(TCustomDeclaration)
   protected
     function GetAsCode: String; override;
+    function GetDeclaration: String; virtual;
   public
+    function GetForwardDeclaration: String;
     property Name: String;
     property Extends: array of TTypeReference;
     property IsExport: Boolean;
@@ -322,6 +325,7 @@ type
   TClassDeclaration = class(TInterfaceDeclaration)
   protected
     function GetAsCode: String; override;
+    function GetDeclaration: String; override;
   public
     property Implements: array of TTypeReference;
     property IsAbstract: Boolean;
@@ -338,7 +342,10 @@ type
   TTypeAlias = class(TNamedDeclaration)
   protected
     function GetAsCode: String; override;
+    function GetDeclaration(BreakLine: Boolean): String;
   public
+    function GetForwardDeclaration: String;
+
     property &Type: TCustomType;
     property &TypeParameters: array of TTypeParameter;
   end;
@@ -485,17 +492,17 @@ type
 implementation
 
 uses
-  NodeJS.Core;
+  NodeJS.Core, System.Dictionaries;
 
 
 function Escape(Name: String): String;
 begin
-  Result := Name;
-  if LowerCase(Name) in ['abstract', 'begin', 'class', 'const', 'constructor', 
-    'default', 'div', 'end', 'exit', 'export', 'external', 'function', 
-    'interface', 'label', 'method', 'object', 'private', 'property', 
-    'protected', 'public', 'repeat', 'string', 'then', 'type', 
-    'unit', 'uses'] then
+  Result := Name.Replace('$', '');
+  if LowerCase(Name) in ['as', 'abstract', 'array', 'begin', 'class', 'const',
+    'constructor', 'default', 'div', 'end', 'exit', 'export', 'external',
+    'function', 'inline', 'interface', 'label', 'method', 'object', 'private',
+    'property', 'protected', 'public', 'record', 'repeat', 'set', 'string',
+    'then', 'type', 'unit', 'uses'] then
     Result := '&' + Result;
   if LowerCase(Name) in ['length', 'include', 'exclude'] then
     Result := '_' + Result;
@@ -596,6 +603,11 @@ begin
   Result := 'type of';
 end;
 
+function TTypeOfType.GetAsCode: String;
+begin
+  if &Type is TCustomNamedType then
+    Result := 'J' + TCustomNamedType(&Type).Name + 'Class';
+end;
 
 { TPredefinedType }
 
@@ -754,14 +766,19 @@ end;
 
 function TNamedType.GetAsCode: String;
 begin
+  var ArgumentsValue := '';
   Result := inherited GetAsCode;
-  if Arguments.Length > 0 then
+
+  for var Argument in Arguments do
   begin
-    Result += '{<';
-    for var Argument in Arguments do
-      Result += Argument.AsCode;
-    Result += '>}';
+    if ArgumentsValue <> '' then
+      ArgumentsValue += ', ';
+
+    ArgumentsValue += Argument.AsCode;
   end;
+
+  if ArgumentsValue <> '' then
+    Result += '<' + ArgumentsValue + '>';
 end;
 
 
@@ -882,7 +899,12 @@ end;
 
 function TConstructorDeclaration.GetAsCode: String;
 begin
-  Result := GetIndentionString + 'constructor Create';
+  Result := GetIndentionString;
+
+  if IsStatic then
+    Result += 'class ';
+
+  Result += 'constructor Create';
 
   if Assigned(&Type) then
     Result += &Type.AsCode;
@@ -896,7 +918,12 @@ end;
 
 function TPropertyMemberDeclaration.GetAsCode: String;
 begin
-  Result := GetIndentionString + Escape(Name);
+  Result := GetIndentionString;
+
+  if IsStatic then
+    Result += 'class var ';
+
+  Result += Escape(Name);
 
   if TypeArguments.Count > 0 then
   begin
@@ -956,6 +983,10 @@ begin
       Inc(OptionalParameterCount);
 
   Head := GetIndentionString;
+
+  if IsStatic then
+    Head += 'class ';
+
   Head += if Assigned(CallSignature.&Type) then 'function' else 'procedure';
   Head += ' ' + Escape(Name);
 
@@ -1291,7 +1322,26 @@ end;
 { TAmbientFunctionDeclaration }
 
 function TAmbientModuleDeclaration.GetAsCode: String;
+var
+  ProcessedClasses: TW3ObjDictionary;
+
+  procedure ProcessClass(ClassName: String);
+  begin
+    if ProcessedClasses.Contains(ClassName) then
+    begin
+      var &Class := TClassDeclaration(ProcessedClasses[ClassName]);
+
+      ProcessedClasses.Delete(ClassName);
+
+      for var TypeReference in &Class.Extends do
+        ProcessClass(TypeReference.Name);
+
+      Result += &Class.AsCode;
+    end;
+  end;
+
 begin
+  ProcessedClasses := TW3ObjDictionary.Create;
   Result := '//' + IdentifierPath + CRLF + CRLF;
 
   var Constants := 0;
@@ -1318,11 +1368,24 @@ begin
     for var Enum in Enums do
       Result += Enum.AsCode;
 
+    for var &Type in TypeAliases do
+      if &Type.&Type is TObjectType then
+        Result += &Type.GetForwardDeclaration;
+
+    for var &Interface in Interfaces do
+      Result += &Interface.GetForwardDeclaration;
+
     for var &Class in Classes do
-      Result += &Class.AsCode;
+    begin
+      ProcessedClasses[&Class.Name] := &Class;
+      Result += &Class.GetForwardDeclaration;
+    end;
 
     for var &Interface in Interfaces do
       Result += &Interface.AsCode;
+
+    for var &Class in Classes do
+      ProcessClass(&Class.Name);
 
     for var TypeAlias in TypeAliases do
       Result += TypeAlias.AsCode;
@@ -1364,7 +1427,8 @@ function TClassDeclaration.GetAsCode: String;
 begin
   {$IFDEF DEBUG} Console.Log('Write external class: ' + Name); {$ENDIF}
 
-  Result += GetIndentionString + 'J' + Name + ' = class external ''' + Name + '''';
+  Result := GetDeclaration + ' external ''' + Name + '''';
+
   if Extends.Count > 0 then
   begin
     Result += '(';
@@ -1383,13 +1447,18 @@ begin
   Result += GetIndentionString + 'end;' + CRLF + CRLF;
 end;
 
+function TClassDeclaration.GetDeclaration: String;
+begin
+  Result := GetIndentionString + 'J' + Name + ' = class';
+end;
+
 { TInterfaceDeclaration }
 
 function TInterfaceDeclaration.GetAsCode: String;
 begin
   {$IFDEF DEBUG} Console.Log('Write interface: ' + Name); {$ENDIF}
 
-  Result += GetIndentionString + 'J' + Name;
+  Result += GetDeclaration;
 
   if TypeParameters.Length > 0 then
   begin
@@ -1415,6 +1484,16 @@ begin
 
   // line breaks
   Result += ';' + CRLF + CRLF;
+end;
+
+function TInterfaceDeclaration.GetForwardDeclaration: String;
+begin
+  Result := GetDeclaration + ';' + CRLF;
+end;
+
+function TInterfaceDeclaration.GetDeclaration: String;
+begin
+  Result := GetIndentionString + 'J' + Name;
 end;
 
 
@@ -1460,6 +1539,16 @@ function TTypeAlias.GetAsCode: String;
 begin
   {$IFDEF DEBUG} Console.Log('Write type: ' + Name); {$ENDIF}
 
+  Result := GetDeclaration(True) + &Type.AsCode + ';' + CRLF + CRLF
+end;
+
+function TTypeAlias.GetForwardDeclaration: String;
+begin
+  Result := GetDeclaration(False) + ';' + CRLF;
+end;
+
+function TTypeAlias.GetDeclaration(BreakLine: Boolean): String;
+begin
   var IsObject := &Type is TObjectType;
   Result := GetIndentionString;
 
@@ -1469,9 +1558,10 @@ begin
   Result += Name + ' = ';
 
   if IsObject then
-    Result += 'class' + CRLF;
+    Result += 'class';
 
-  Result += &Type.AsCode + ';' + CRLF + CRLF
+  if BreakLine then
+    Result += CRLF;
 end;
 
 
