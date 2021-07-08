@@ -45,7 +45,11 @@ type
     property Name: String;
   end;
 
-  TCustomType = class(TCustomDeclaration);
+  TCustomType = class(TCustomDeclaration)
+  public
+    function GetPromiseType: TCustomType; virtual;
+    function IsPromise: Boolean; virtual;
+  end;
 
   TTypeParameter = class(TCustomDeclaration)
   protected
@@ -163,6 +167,10 @@ type
     function GetAsCode: String; override;
   public
     constructor Create(Owner: IDeclarationOwner; AName: String); reintroduce;
+
+    function GetPromiseType: TCustomType; override;
+    function IsPromise: Boolean; override;
+
     property Name: String read GetName;
     property Arguments: array of TTypeArgument;
   end;
@@ -501,10 +509,10 @@ begin
   if LowerCase(Name) in ['as', 'abstract', 'array', 'begin', 'class', 'const',
     'constructor', 'default', 'div', 'end', 'exit', 'export', 'external',
     'function', 'inline', 'interface', 'label', 'method', 'object', 'private',
-    'property', 'protected', 'public', 'record', 'repeat', 'set', 'string',
+    'property', 'protected', 'public', 'record', 'repeat', 'set',
     'then', 'type', 'unit', 'uses'] then
     Result := '&' + Result;
-  if LowerCase(Name) in ['length', 'include', 'exclude'] then
+  if LowerCase(Name) in ['length', 'include', 'exclude', 'string'] then
     Result := '_' + Result;
 end;
 
@@ -565,7 +573,7 @@ end;
 
 function TUnionType.GetAsCode: String;
 begin
-  Result := 'Variant {';
+  Result := 'JSValue {';
 
   for var Index := Low(Types) to High(Types) - 1 do
   begin
@@ -592,7 +600,7 @@ begin
       Result := Escape(Name);
   end;
 *)
-  Result := 'J' + Name;
+  Result := 'T' + Name;
 end;
 
 
@@ -606,7 +614,7 @@ end;
 function TTypeOfType.GetAsCode: String;
 begin
   if &Type is TCustomNamedType then
-    Result := 'J' + TCustomNamedType(&Type).Name + 'Class';
+    Result := 'T' + TCustomNamedType(&Type).Name + 'Class';
 end;
 
 { TPredefinedType }
@@ -621,7 +629,7 @@ end;
 
 function TVariantType.GetName: String;
 begin
-  Result := 'Variant';
+  Result := 'JSValue';
 end;
 
 
@@ -629,7 +637,7 @@ end;
 
 function TFloatType.GetName: String;
 begin
-  Result := 'Float';
+  Result := 'Double';
 end;
 
 
@@ -766,19 +774,41 @@ end;
 
 function TNamedType.GetAsCode: String;
 begin
-  var ArgumentsValue := '';
-  Result := inherited GetAsCode;
-
-  for var Argument in Arguments do
+  if Name = 'Partial' then
+    Result := Arguments[0].AsCode
+  else if IsPromise then
+    Result := GetPromiseType.AsCode
+  else
   begin
+    var ArgumentsValue := '';
+    Result := inherited GetAsCode;
+
+    for var Argument in Arguments do
+    begin
+      if ArgumentsValue <> '' then
+        ArgumentsValue += ', ';
+
+      ArgumentsValue += Argument.AsCode;
+    end;
+
     if ArgumentsValue <> '' then
-      ArgumentsValue += ', ';
-
-    ArgumentsValue += Argument.AsCode;
+      Result += '<' + ArgumentsValue + '>';
   end;
+end;
 
-  if ArgumentsValue <> '' then
-    Result += '<' + ArgumentsValue + '>';
+function TNamedType.IsPromise: Boolean;
+begin
+  Result := Name = 'Promise';
+end;
+
+function TNamedType.GetPromiseType: TCustomType;
+begin
+  var &Type := Arguments[0].&Type;
+
+  if (&Type is TNamedType) and (TNamedType(&Type).Name = 'void') then
+    Result := nil
+  else
+    Result := &Type;
 end;
 
 
@@ -838,7 +868,7 @@ end;
 
 function TEnumerationDeclaration.GetAsCode: String;
 begin
-  Result += GetIndentionString + 'T' + Name + ' = Variant;' + CRLF;
+  Result += GetIndentionString + 'T' + Name + ' = JSValue;' + CRLF;
   Result += GetIndentionString + 'T' + Name + 'Helper = strict helper for T' + Name + CRLF;
   BeginIndention;
   for var Item in Items do
@@ -941,7 +971,7 @@ begin
     Result += &Type.AsCode;
   end
   else
-    Result += 'Variant';
+    Result += 'JSValue';
   Result += ';';
   if Nullable then
     Result += ' // nullable';
@@ -977,7 +1007,13 @@ var
   Head: string;
   Foot: string;
 begin
+  var IsPromise := Assigned(CallSignature.&Type) and CallSignature.&Type.IsPromise;
   var OptionalParameterCount := 0;
+  var ReturnType := CallSignature.&Type;
+
+  if IsPromise then
+    ReturnType := CallSignature.&Type.GetPromiseType;
+
   for var Parameter in CallSignature.ParameterList do
     if Parameter.IsOptional then
       Inc(OptionalParameterCount);
@@ -987,11 +1023,15 @@ begin
   if IsStatic then
     Head += 'class ';
 
-  Head += if Assigned(CallSignature.&Type) then 'function' else 'procedure';
+  Head += if Assigned(ReturnType) then 'function' else 'procedure';
   Head += ' ' + Escape(Name);
 
   Foot := ';';
   Foot += if OptionalParameterCount > 0 then ' overload;';
+
+  if IsPromise then
+    Foot += ' async;';
+
   Foot += CRLF;
 
   Result := '';
@@ -1012,7 +1052,7 @@ begin
     Result += &Type.AsCode
   end
   else
-    Result += 'Variant';
+    Result += 'JSValue';
 end;
 
 function TFunctionParameter.GetAsCodeOmitType(OmitType: Boolean): String;
@@ -1028,7 +1068,7 @@ begin
       Result += &Type.AsCode
     end
     else
-      Result += 'Variant';
+      Result += 'JSValue';
   end;
 end;
 
@@ -1144,7 +1184,7 @@ begin
     Result += &Type.AsCode
   end
   else
-    Result += 'Variant';
+    Result += 'JSValue';
 
   if DefaultValue <> '' then
     Result += ' = ' + DefaultValue;
@@ -1173,7 +1213,7 @@ begin
       Result += &Type.AsCode
     end
     else
-      Result += 'Variant';
+      Result += 'JSValue';
   end;
 end;
 
@@ -1427,7 +1467,7 @@ function TClassDeclaration.GetAsCode: String;
 begin
   {$IFDEF DEBUG} Console.Log('Write external class: ' + Name); {$ENDIF}
 
-  Result := GetDeclaration + ' external ''' + Name + '''';
+  Result := GetDeclaration + ' external name ''' + Name + '''';
 
   if Extends.Count > 0 then
   begin
@@ -1449,7 +1489,7 @@ end;
 
 function TClassDeclaration.GetDeclaration: String;
 begin
-  Result := GetIndentionString + 'J' + Name + ' = class';
+  Result := GetIndentionString + 'T' + Name + ' = class';
 end;
 
 { TInterfaceDeclaration }
@@ -1493,7 +1533,7 @@ end;
 
 function TInterfaceDeclaration.GetDeclaration: String;
 begin
-  Result := GetIndentionString + 'J' + Name;
+  Result := GetIndentionString + 'T' + Name;
 end;
 
 
@@ -1515,7 +1555,7 @@ begin
   if Assigned(&Type) then
     Result := &Type.AsCode
   else
-    Result := 'Variant';
+    Result := 'JSValue';
 end;
 
 
@@ -1523,7 +1563,7 @@ end;
 
 function TTypeReference.GetAsCode: String;
 begin
-  Result := 'J' + Name;
+  Result := 'T' + Name;
   if Arguments.Length > 0 then
   begin
     Result += ' <' + Arguments[0].AsCode;
@@ -1590,7 +1630,7 @@ function TAmbientClassDeclaration.GetAsCode: String;
 begin
   {$IFDEF DEBUG} Console.Log('Write class: ' + Name); {$ENDIF}
 
-  Result += GetIndentionString + 'J' + Name + ' = class external ''' + Name + '''';
+  Result += GetIndentionString + 'T' + Name + ' = class external name ''' + Name + '''';
   if Extends.Count > 0 then
   begin
     Result += '(';
@@ -1642,7 +1682,7 @@ begin
     Result += 'class var ';
   Result += Escape(Name);
 
-  Result +=  ': ' + if Assigned(&Type) then &Type.AsCode else 'Variant';
+  Result +=  ': ' + if Assigned(&Type) then &Type.AsCode else 'JSValue';
 
   // line break
   Result += ';' + CRLF;
@@ -1792,6 +1832,18 @@ end;
 function TNullType.GetAsCode: String;
 begin
   Result := '';
+end;
+
+{ TCustomType }
+
+function TCustomType.IsPromise: Boolean;
+begin
+  Result := False;
+end;
+
+function TCustomType.GetPromiseType: TCustomType;
+begin
+  Result := nil;
 end;
 
 end.
