@@ -160,18 +160,18 @@ function generateUnitName(fileName: string, prefix: string): string {
   // Sanitize for Pascal identifier
   name = name.replace(/[^a-zA-Z0-9_]/g, '_');
 
-  // Add prefix
-  if (prefix && !name.startsWith(prefix)) {
-    name = prefix + '_' + name;
-  }
-
   // Ensure it starts with a letter
   if (/^\d/.test(name)) {
     name = 'U_' + name;
   }
 
-  // Capitalize first letter
+  // Capitalize first letter of the base name
   name = name.charAt(0).toUpperCase() + name.slice(1);
+
+  // Add prefix
+  if (prefix && !name.startsWith(prefix)) {
+    name = prefix + '_' + name;
+  }
 
   return name;
 }
