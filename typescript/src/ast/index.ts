@@ -13,6 +13,8 @@ import {
   PascalProperty,
   PascalParameter,
   PascalTypeAlias,
+  PascalEnum,
+  PascalEnumMember,
   PascalMember,
   PascalDeclaration,
 } from '../types.js';
@@ -74,8 +76,8 @@ export class TypeScriptToPascalTransformer {
         const method = this.transformFunctionDeclaration(node);
         if (method) declarations.push(method);
       } else if (ts.isEnumDeclaration(node)) {
-        const typeAlias = this.transformEnum(node);
-        if (typeAlias) declarations.push(typeAlias);
+        const pascalEnum = this.transformEnum(node);
+        if (pascalEnum) declarations.push(pascalEnum);
       }
     });
 
@@ -290,12 +292,34 @@ export class TypeScriptToPascalTransformer {
   /**
    * Transform an enum declaration
    */
-  transformEnum(node: ts.EnumDeclaration): PascalTypeAlias | null {
+  transformEnum(node: ts.EnumDeclaration): PascalEnum | null {
     const name = node.name.text;
+    const members: PascalEnumMember[] = [];
 
-    // For now, represent enums as Integer type aliases
-    // A more sophisticated approach would create actual Pascal enums
-    return new PascalTypeAlias(name, 'Integer');
+    // Check if const enum
+    const isConst = hasModifier(node, ts.SyntaxKind.ConstKeyword);
+
+    // Transform enum members
+    for (const member of node.members) {
+      const memberName = member.name.getText(this.sourceFile);
+
+      // Try to get the initializer value
+      let value: number | string | undefined;
+      if (member.initializer) {
+        if (ts.isNumericLiteral(member.initializer)) {
+          value = parseInt(member.initializer.text, 10);
+        } else if (ts.isStringLiteral(member.initializer)) {
+          value = member.initializer.text;
+        } else {
+          // For complex expressions, just get the text
+          value = member.initializer.getText(this.sourceFile);
+        }
+      }
+
+      members.push(new PascalEnumMember(memberName, value));
+    }
+
+    return new PascalEnum(name, members, isConst);
   }
 }
 

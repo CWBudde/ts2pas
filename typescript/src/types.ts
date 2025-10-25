@@ -246,3 +246,58 @@ export class PascalTypeAlias extends PascalDeclaration {
     return `${indent}${this.name} = ${this.targetType};`;
   }
 }
+
+/**
+ * Represents an enum member
+ */
+export class PascalEnumMember {
+  constructor(
+    public name: string,
+    public value?: number | string
+  ) {}
+
+  toCode(indentation: number): string {
+    const indent = ' '.repeat(indentation);
+    if (this.value !== undefined) {
+      return `${indent}${this.name} = ${this.value}`;
+    }
+    return `${indent}${this.name}`;
+  }
+}
+
+/**
+ * Represents a Pascal enum declaration
+ */
+export class PascalEnum extends PascalDeclaration {
+  constructor(
+    name: string,
+    public members: PascalEnumMember[] = [],
+    public isConst = false
+  ) {
+    super(name);
+  }
+
+  toCode(indentation: number): string {
+    const indent = ' '.repeat(indentation);
+    let code = `${indent}${this.name} = (`;
+
+    if (this.members.length > 0) {
+      // Put members on the same line if few, otherwise multiline
+      if (this.members.length <= 3) {
+        code += this.members.map((m) => m.name).join(', ');
+      } else {
+        code += '\n';
+        code += this.members
+          .map((m, idx) => {
+            const isLast = idx === this.members.length - 1;
+            return `${indent}  ${m.name}${isLast ? '' : ','}`;
+          })
+          .join('\n');
+        code += `\n${indent}`;
+      }
+    }
+
+    code += ');';
+    return code;
+  }
+}
