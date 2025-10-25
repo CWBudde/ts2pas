@@ -183,10 +183,10 @@ describe('Integration Tests', () => {
   describe('Unit Name Generation', () => {
     it('should generate valid unit names', () => {
       const testCases = [
-        { input: 'my-module.d.ts', expected: /^JS_[Mm]y_module$/ },
-        { input: 'react.d.ts', expected: /^JS_[Rr]eact$/ },
-        { input: '123invalid.d.ts', expected: /^U_/ },
-        { input: 'CamelCase.d.ts', expected: /^JS_CamelCase$/ },
+        { input: 'my-module.d.ts', expected: /unit JS_My_module;/ },
+        { input: 'react.d.ts', expected: /unit JS_React;/ },
+        { input: '123invalid.d.ts', expected: /unit JS_U_123invalid;/ },
+        { input: 'CamelCase.d.ts', expected: /unit JS_CamelCase;/ },
       ];
 
       for (const { input, expected } of testCases) {
