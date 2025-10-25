@@ -53,7 +53,7 @@ export class PascalUnit extends PascalNode {
     return code;
   }
 
-  getName(): string {
+  override getName(): string {
     return this.name;
   }
 }
@@ -66,7 +66,7 @@ export abstract class PascalDeclaration extends PascalNode {
     super();
   }
 
-  getName(): string {
+  override getName(): string {
     return this.name;
   }
 }
@@ -153,7 +153,7 @@ export abstract class PascalMember extends PascalNode {
     super();
   }
 
-  getName(): string {
+  override getName(): string {
     return this.name;
   }
 }
@@ -225,7 +225,7 @@ export class PascalParameter extends PascalNode {
     return `${this.name}${optionalPart}: ${this.paramType}${defaultPart}`;
   }
 
-  getName(): string {
+  override getName(): string {
     return this.name;
   }
 }

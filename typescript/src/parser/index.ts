@@ -359,8 +359,10 @@ export function isExported(node: ts.Node): boolean {
  * @returns True if the node has the modifier
  */
 export function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
-  if (!node.modifiers) return false;
-  return node.modifiers.some((mod) => mod.kind === kind);
+  if (!ts.canHaveModifiers(node)) return false;
+  const modifiers = ts.getModifiers(node);
+  if (!modifiers) return false;
+  return modifiers.some((mod) => mod.kind === kind);
 }
 
 /**
@@ -370,8 +372,10 @@ export function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
  * @returns Array of modifier strings
  */
 export function getModifiers(node: ts.Node): string[] {
-  if (!node.modifiers) return [];
-  return node.modifiers.map((mod) => ts.SyntaxKind[mod.kind].toLowerCase());
+  if (!ts.canHaveModifiers(node)) return [];
+  const modifiers = ts.getModifiers(node);
+  if (!modifiers) return [];
+  return modifiers.map((mod) => ts.SyntaxKind[mod.kind].toLowerCase());
 }
 
 /**
