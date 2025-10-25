@@ -4,9 +4,9 @@
  * Main entry point for the library API
  */
 
-import { parseTypeScriptDefinition, DeclarationKind } from './parser/index.js';
-import { TypeHandler } from './parser/types.js';
-import { PascalUnit } from './types.js';
+import { parseTypeScriptDefinition } from './parser/index.js';
+import { transformSourceFile } from './ast/index.js';
+import { PascalCodeGenerator } from './codegen/index.js';
 
 export interface ConversionOptions {
   /** Indentation size (spaces) */
@@ -21,6 +21,8 @@ export interface ConversionOptions {
   namespacePrefix?: string;
   /** File name (used for unit name) */
   fileName?: string;
+  /** Whether to mark classes as external (for DWScript) */
+  externalClasses?: boolean;
 }
 
 /**
@@ -41,6 +43,7 @@ export function convertTypeScriptToPascal(
     typeMapping = {},
     namespacePrefix = 'JS',
     fileName = 'Converted',
+    externalClasses = true,
   } = options;
 
   if (verbose) {
@@ -64,86 +67,48 @@ export function convertTypeScriptToPascal(
     }
   }
 
-  // Generate unit name from file name
-  const unitName = generateUnitName(fileName, namespacePrefix);
+  // Transform TypeScript AST to Pascal AST
+  const pascalUnit = transformSourceFile(parseResult.sourceFile, {
+    typeMapping,
+    externalClasses,
+    style,
+  });
 
-  // Create Pascal unit
-  const unit = new PascalUnit(unitName, [], []);
-
-  // Add comment header
-  const declarations: string[] = [];
-  declarations.push('(*');
-  declarations.push(` * Auto-generated from TypeScript definitions`);
-  declarations.push(` * Source: ${fileName}`);
-  declarations.push(` * Generator: ts2pas v1.0.0-alpha.1`);
-  declarations.push(' *)');
-  declarations.push('');
-
-  // Process declarations
-  for (const decl of parseResult.declarations) {
-    if (!decl.isExported) {
-      // Skip non-exported declarations
-      continue;
-    }
-
-    switch (decl.kind) {
-      case DeclarationKind.Class:
-        declarations.push(`// Class: ${decl.name}`);
-        declarations.push(`// TODO: Implement class conversion`);
-        declarations.push('');
-        break;
-
-      case DeclarationKind.Interface:
-        declarations.push(`// Interface: ${decl.name}`);
-        declarations.push(`// TODO: Implement interface conversion`);
-        declarations.push('');
-        break;
-
-      case DeclarationKind.Function:
-        declarations.push(`// Function: ${decl.name}`);
-        declarations.push(`// TODO: Implement function conversion`);
-        declarations.push('');
-        break;
-
-      case DeclarationKind.TypeAlias:
-        declarations.push(`// Type alias: ${decl.name} = ${decl.metadata?.type}`);
-        declarations.push(`// TODO: Implement type alias conversion`);
-        declarations.push('');
-        break;
-
-      case DeclarationKind.Enum:
-        declarations.push(`// Enum: ${decl.name}`);
-        declarations.push(`// TODO: Implement enum conversion`);
-        declarations.push('');
-        break;
-
-      case DeclarationKind.Variable:
-        declarations.push(`// Variable: ${decl.name}`);
-        declarations.push(`// TODO: Implement variable conversion`);
-        declarations.push('');
-        break;
-
-      case DeclarationKind.Module:
-        declarations.push(`// Module/Namespace: ${decl.name}`);
-        declarations.push(`// TODO: Implement module conversion`);
-        declarations.push('');
-        break;
-
-      default:
-        // Skip imports/exports for now
-        break;
-    }
+  if (verbose) {
+    console.log(`Transformed to ${pascalUnit.interfaceDeclarations.length} Pascal declarations`);
   }
 
-  // Build the Pascal unit
-  const indent = ' '.repeat(indentSize);
-  let output = `unit ${unitName};\n\n`;
-  output += 'interface\n\n';
-  output += declarations.map((line) => (line ? indent + line : '')).join('\n');
-  output += '\n\nimplementation\n\n';
-  output += 'end.\n';
+  // Update unit name with namespace prefix
+  const unitName = generateUnitName(fileName, namespacePrefix);
+  pascalUnit.name = unitName;
 
-  return output;
+  // Add header comment
+  const headerComment = [
+    '(*',
+    ' * Auto-generated from TypeScript definitions',
+    ` * Source: ${fileName}`,
+    ' * Generator: ts2pas v1.0.0-alpha.1',
+    ' *)',
+  ].join('\n' + ' '.repeat(indentSize));
+
+  // Generate Pascal code
+  const codeGenerator = new PascalCodeGenerator({
+    indentSize,
+    style,
+  });
+
+  let pascalCode = codeGenerator.generateUnit(pascalUnit);
+
+  // Insert header comment after unit declaration
+  const lines = pascalCode.split('\n');
+  const interfaceIndex = lines.findIndex((line) => line.trim() === 'interface');
+
+  if (interfaceIndex !== -1) {
+    lines.splice(interfaceIndex + 1, 0, '', headerComment, '');
+    pascalCode = lines.join('\n');
+  }
+
+  return pascalCode;
 }
 
 /**
@@ -179,3 +144,4 @@ function generateUnitName(fileName: string, prefix: string): string {
 // Export types and interfaces for public API
 export * from './types.js';
 export * from './parser/index.js';
+export * from './ast/index.js';
