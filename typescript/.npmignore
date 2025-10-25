@@ -1,0 +1,37 @@
+# Source files (only ship dist/)
+src/
+tests/
+*.test.ts
+*.spec.ts
+
+# Configuration files
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+eslint.config.js
+.prettierrc.json
+
+# Development files
+.vscode/
+.idea/
+*.log
+coverage/
+.nyc_output/
+.cache/
+
+# Git
+.git/
+.gitignore
+.github/
+
+# CI/CD
+.travis.yml
+.circleci/
+azure-pipelines.yml
+
+# Documentation source (keep README.md)
+docs/
+
+# Environment
+.env
+.env.*
