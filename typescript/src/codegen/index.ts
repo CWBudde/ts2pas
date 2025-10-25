@@ -33,14 +33,44 @@ export class PascalCodeGenerator {
    * Generate code from a Pascal unit
    */
   generateUnit(unit: PascalUnit): string {
-    return this.format(unit.toCode(0));
+    const code = unit.toCode(0);
+    return this.format(this.adjustIndentation(code));
   }
 
   /**
    * Generate code from any Pascal node
    */
   generate(node: PascalNode, indentation = 0): string {
-    return this.format(node.toCode(indentation));
+    const code = node.toCode(indentation);
+    return this.format(this.adjustIndentation(code));
+  }
+
+  /**
+   * Adjust indentation to match configured indent size
+   * The toCode methods use 2-space indentation by default
+   */
+  private adjustIndentation(code: string): string {
+    if (this.options.indentSize === 2) {
+      return code; // No adjustment needed
+    }
+
+    const lines = code.split('\n');
+    return lines
+      .map((line) => {
+        // Count leading spaces (must be even, since default is 2-space)
+        const match = line.match(/^( *)/);
+        if (!match) return line;
+
+        const leadingSpaces = match[1].length;
+        if (leadingSpaces === 0) return line;
+
+        // Calculate indent level (default 2-space increments)
+        const indentLevel = leadingSpaces / 2;
+        // Apply new indent size
+        const newIndent = ' '.repeat(indentLevel * this.options.indentSize);
+        return newIndent + line.slice(leadingSpaces);
+      })
+      .join('\n');
   }
 
   /**
