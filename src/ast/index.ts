@@ -63,25 +63,46 @@ export class TypeScriptToPascalTransformer {
 
     // Visit each top-level statement
     ts.forEachChild(this.sourceFile, (node) => {
-      if (ts.isClassDeclaration(node) && node.name) {
-        const pascalClass = this.transformClass(node);
-        if (pascalClass) declarations.push(pascalClass);
-      } else if (ts.isInterfaceDeclaration(node)) {
-        const pascalInterface = this.transformInterface(node);
-        if (pascalInterface) declarations.push(pascalInterface);
-      } else if (ts.isTypeAliasDeclaration(node)) {
-        const typeAlias = this.transformTypeAlias(node);
-        if (typeAlias) declarations.push(typeAlias);
-      } else if (ts.isFunctionDeclaration(node) && node.name) {
-        const method = this.transformFunctionDeclaration(node);
-        if (method) declarations.push(method);
-      } else if (ts.isEnumDeclaration(node)) {
-        const pascalEnum = this.transformEnum(node);
-        if (pascalEnum) declarations.push(pascalEnum);
-      }
+      this.processNode(node, declarations);
     });
 
     return new PascalUnit(unitName, [], declarations);
+  }
+
+  /**
+   * Process a TypeScript node and add Pascal declarations
+   */
+  private processNode(node: ts.Node, declarations: PascalDeclaration[]): void {
+    if (ts.isClassDeclaration(node) && node.name) {
+      const pascalClass = this.transformClass(node);
+      if (pascalClass) declarations.push(pascalClass);
+    } else if (ts.isInterfaceDeclaration(node)) {
+      const pascalInterface = this.transformInterface(node);
+      if (pascalInterface) declarations.push(pascalInterface);
+    } else if (ts.isTypeAliasDeclaration(node)) {
+      const typeAlias = this.transformTypeAlias(node);
+      if (typeAlias) declarations.push(typeAlias);
+    } else if (ts.isFunctionDeclaration(node) && node.name) {
+      const method = this.transformFunctionDeclaration(node);
+      if (method) declarations.push(method);
+    } else if (ts.isEnumDeclaration(node)) {
+      const pascalEnum = this.transformEnum(node);
+      if (pascalEnum) declarations.push(pascalEnum);
+    } else if (ts.isModuleDeclaration(node)) {
+      // Handle module declarations (e.g., declare module "fs" { ... })
+      // Process the module's children recursively
+      if (node.body) {
+        if (ts.isModuleBlock(node.body)) {
+          // Module block contains statements
+          node.body.statements.forEach((stmt) => {
+            this.processNode(stmt, declarations);
+          });
+        } else if (ts.isModuleDeclaration(node.body)) {
+          // Nested module declaration
+          this.processNode(node.body, declarations);
+        }
+      }
+    }
   }
 
   /**
@@ -117,11 +138,27 @@ export class TypeScriptToPascalTransformer {
       }
     }
 
+    // Track seen method signatures to handle overloads
+    const seenMethods = new Set<string>();
+
     // Transform members
     for (const member of node.members) {
       if (ts.isMethodDeclaration(member) || ts.isMethodSignature(member)) {
         const method = this.transformMethod(member);
-        if (method) members.push(method);
+        if (method) {
+          // Create a signature key based on method name and parameter types
+          const paramSignature = method.parameters
+            .map(p => `${p.name}:${p.paramType}`)
+            .join(',');
+          const methodKey = `${method.name}(${paramSignature}):${method.returnType || 'void'}`;
+
+          // Only add if we haven't seen this exact signature
+          if (!seenMethods.has(methodKey)) {
+            seenMethods.add(methodKey);
+            members.push(method);
+          }
+          // Skip duplicate overloads - Pascal doesn't support overloading
+        }
       } else if (ts.isPropertyDeclaration(member) || ts.isPropertySignature(member)) {
         const property = this.transformProperty(member);
         if (property) members.push(property);
@@ -152,11 +189,27 @@ export class TypeScriptToPascalTransformer {
       }
     }
 
+    // Track seen method signatures to handle overloads
+    const seenMethods = new Set<string>();
+
     // Transform members
     for (const member of node.members) {
       if (ts.isMethodSignature(member)) {
         const method = this.transformMethod(member);
-        if (method) members.push(method);
+        if (method) {
+          // Create a signature key based on method name and parameter types
+          const paramSignature = method.parameters
+            .map(p => `${p.name}:${p.paramType}`)
+            .join(',');
+          const methodKey = `${method.name}(${paramSignature}):${method.returnType || 'void'}`;
+
+          // Only add if we haven't seen this exact signature
+          if (!seenMethods.has(methodKey)) {
+            seenMethods.add(methodKey);
+            members.push(method);
+          }
+          // Skip duplicate overloads - Pascal doesn't support overloading
+        }
       } else if (ts.isPropertySignature(member)) {
         const property = this.transformProperty(member);
         if (property) members.push(property);
