@@ -13,10 +13,19 @@ export default defineConfig({
         'node_modules/',
         'dist/',
         'tests/',
+        'legacy/',
+        'scripts/',
         '**/*.test.ts',
         '**/*.spec.ts',
         '**/types.ts',
         '**/*.config.ts',
+        'src/cli.ts', // CLI tested via integration tests
+        'src/parser/visitor.ts', // Base visitor classes - not used in production
+        'eslint.config.js',
+        'tsup.config.ts',
+      ],
+      include: [
+        'src/**/*.ts',
       ],
       all: true,
       lines: 80,

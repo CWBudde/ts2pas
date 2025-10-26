@@ -2,9 +2,12 @@
 
 > TypeScript definition file to DWScript Pascal converter - Modern TypeScript implementation
 
+[![CI](https://github.com/CWBudde/ts2pas/actions/workflows/ci.yml/badge.svg)](https://github.com/CWBudde/ts2pas/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
+[![npm version](https://img.shields.io/npm/v/@cwbudde/ts2pas.svg)](https://www.npmjs.com/package/@cwbudde/ts2pas)
+[![codecov](https://codecov.io/gh/CWBudde/ts2pas/branch/master/graph/badge.svg)](https://codecov.io/gh/CWBudde/ts2pas)
 
 A modern tool to convert TypeScript definition files (`.d.ts`) to DWScript-based Object Pascal headers. This is a complete rewrite of the original ts2pas in TypeScript with comprehensive test coverage and modern tooling.
 
@@ -12,11 +15,13 @@ A modern tool to convert TypeScript definition files (`.d.ts`) to DWScript-based
 
 - **Complete TypeScript Rewrite**: Built with TypeScript 5.6+ for better maintainability
 - **Modern Architecture**: Proper AST transformation pipeline with visitor pattern
-- **Comprehensive Testing**: 137 tests with high coverage (100% on core AST)
+- **Comprehensive Testing**: 169 tests with 89.91% coverage (100% on core AST)
 - **Better Type Support**: Improved handling of generics, unions, and complex types
 - **Enum Support**: Proper Pascal enum syntax with smart formatting
-- **CLI Improvements**: Better error messages and progress indicators
+- **Enhanced CLI**: Watch mode, batch processing, GitHub URL fetching, config files
 - **TypeScript Compiler API**: Uses official TypeScript parser for accuracy
+- **Regression Testing**: Automated baseline comparison for stability
+- **CI/CD**: Automated testing on multiple platforms and Node.js versions
 
 ## Installation
 
@@ -35,32 +40,89 @@ npx @cwbudde/ts2pas input.d.ts output.pas
 ### CLI
 
 ```bash
+# Basic usage
 ts2pas input.d.ts [output.pas] [options]
 
+# Commands
+ts2pas watch <input...>       # Watch files for changes
+ts2pas batch <pattern>        # Batch process multiple files
+
 Options:
-  -o, --output <file>      Output file path
-  -p, --prefix <prefix>    Namespace prefix for unit names
-  -i, --indent <size>      Indentation size (default: 2)
-  -s, --style <style>      Output style: dws|pas2js (default: dws)
-  -v, --verbose            Enable verbose output
+  --url <url>              Fetch TypeScript definitions from GitHub URL
+  --config <path>          Path to configuration file
+  --indent <size>          Indentation size (default: 2)
+  --style <style>          Output style: dws|pas2js (default: dws)
+  --verbose                Enable verbose output
   -h, --help              Display help information
-  --version               Display version information
+  -V, --version           Display version information
 ```
 
 ### Examples
 
+#### Basic Conversion
+
 ```bash
-# Basic conversion
+# Convert a single file
 ts2pas react.d.ts react.pas
 
-# With namespace prefix
-ts2pas lodash.d.ts --prefix Lodash
+# Custom indentation and style
+ts2pas axios.d.ts --indent 4 --style pas2js
 
-# Custom indentation
-ts2pas axios.d.ts --indent 4
-
-# Verbose mode
+# Verbose mode for debugging
 ts2pas express.d.ts --verbose
+```
+
+#### Download from GitHub
+
+```bash
+# Fetch TypeScript definitions from GitHub
+ts2pas --url https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/lodash/index.d.ts
+
+# With custom output path
+ts2pas --url https://github.com/.../react.d.ts react.pas
+```
+
+#### Configuration File
+
+```bash
+# Create a config file: ts2pas.config.json
+{
+  "indentSize": 4,
+  "style": "pas2js",
+  "verbose": true
+}
+
+# Use config file
+ts2pas input.d.ts --config ts2pas.config.json
+
+# CLI options override config file
+ts2pas input.d.ts --config ts2pas.config.json --indent 2
+```
+
+#### Watch Mode
+
+```bash
+# Watch a single file
+ts2pas watch src/types.d.ts -o output/
+
+# Watch multiple files with glob pattern
+ts2pas watch "src/**/*.d.ts" -o dist/
+
+# Watch with config
+ts2pas watch "types/*.d.ts" --config ts2pas.config.json -o output/
+```
+
+#### Batch Processing
+
+```bash
+# Process all .d.ts files in directory
+ts2pas batch "types/*.d.ts" -o output/
+
+# Process with pattern
+ts2pas batch "src/**/*.d.ts" --indent 4 -o dist/
+
+# Batch with config
+ts2pas batch "**/*.d.ts" --config ts2pas.config.json -o output/
 ```
 
 ### Programmatic API
@@ -108,6 +170,17 @@ const pascalCode = generator.generateUnit(pascalUnit);
 - Configurable indentation
 - Clean, readable code generation
 
+### CLI Features
+
+- ✅ Basic file conversion with progress indicators
+- ✅ Watch mode for automatic regeneration
+- ✅ Batch processing with glob patterns
+- ✅ GitHub URL fetching (auto-converts to raw URLs)
+- ✅ Configuration file support (JSON)
+- ✅ Colored output and spinners
+- ✅ Verbose mode for debugging
+- ✅ Error handling with user-friendly messages
+
 ## Architecture
 
 ```
@@ -145,11 +218,14 @@ npm run format
 
 The project has comprehensive test coverage:
 
-- **137 tests** across 6 test suites
+- **169 tests** across 8 test suites
+- **89.91% overall coverage** (exceeds 80% target)
 - **100% coverage** on core AST transformation
 - **97% coverage** on main converter
 - Tests for all major TypeScript features
 - Integration tests with real-world examples
+- Regression tests with baseline comparison
+- Real-world TypeScript library tests
 
 ## Legacy Version
 
@@ -193,8 +269,12 @@ MIT © Christian-W. Budde
 ### v2.0.0-beta.1 (2025)
 - Complete rewrite in TypeScript
 - Modern architecture with AST transformation
-- Comprehensive test coverage
+- Comprehensive test coverage (169 tests, 89.91% coverage)
 - Better type support and enum handling
+- Enhanced CLI with watch mode, batch processing, and GitHub URL support
+- Configuration file support
+- CI/CD with multi-platform testing
+- Regression testing framework
 
 ### v0.5.0 (Legacy)
 - Several notable improvements (in the parser and generator)

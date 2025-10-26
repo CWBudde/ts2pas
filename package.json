@@ -27,6 +27,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:regression": "vitest run regression.test.ts",
+    "generate-baselines": "tsx scripts/generate-baselines.ts",
     "lint": "eslint src tests --ext .ts",
     "lint:fix": "eslint src tests --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
@@ -60,10 +62,10 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "typescript": "^5.6.3",
-    "commander": "^12.1.0",
     "chalk": "^5.3.0",
-    "ora": "^8.1.1"
+    "commander": "^12.1.0",
+    "ora": "^8.1.1",
+    "typescript": "^5.6.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -75,6 +77,7 @@
     "eslint-plugin-prettier": "^5.2.1",
     "prettier": "^3.4.2",
     "tsup": "^8.3.5",
+    "tsx": "^4.20.6",
     "vitest": "^2.1.8"
   }
 }
