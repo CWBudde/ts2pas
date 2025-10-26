@@ -1,0 +1,14 @@
+{
+  "generated": "2025-10-25T23:14:02.584Z",
+  "version": "2.0.0-beta.1",
+  "totalFiles": 1,
+  "successful": 1,
+  "failed": 0,
+  "baselines": [
+    {
+      "inputFile": "sample.d.ts",
+      "baselineFile": "sample.pas",
+      "success": true
+    }
+  ]
+}

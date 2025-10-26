@@ -46,3 +46,6 @@ temp/
 lib-cov
 .grunt
 .lock-wscript
+
+# Claude
+.claude
